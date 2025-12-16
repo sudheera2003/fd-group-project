@@ -1,10 +1,6 @@
 import * as React from "react";
 import { useLocation, Link } from "react-router-dom";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +34,21 @@ import {
   BellIcon,
   LogOutIcon,
 } from "lucide-react";
+
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import AddUser from "./content/register";
 
 // --- Data Arrays ---
 const navMain = [
@@ -120,7 +131,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link to="/dashboard">
                 <LayersIcon className="!size-5" />
-                <span className="text-base font-semibold">Event Managment.</span>
+                <span className="text-base font-semibold">
+                  Event Managment.
+                </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -196,18 +209,31 @@ function NavDocuments({
     url: string;
   }[];
 }) {
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>User Management</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild>
-              <Link to={item.url}>
-                <DatabaseIcon />
-                <span>{item.name}</span>
-              </Link>
-            </SidebarMenuButton>
+            {item.name === "Add User" ? (
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <SidebarMenuButton>
+                    <DatabaseIcon />
+                    <span>{item.name}</span>
+                  </SidebarMenuButton>
+                </DialogTrigger>
+                <AddUser setOpen={setIsDialogOpen} isOpen={isDialogOpen}/>
+              </Dialog>
+            ) : (
+              <SidebarMenuButton asChild>
+                <Link to={item.url}>
+                  <DatabaseIcon />
+                  <span>{item.name}</span>
+                </Link>
+              </SidebarMenuButton>
+            )}
           </SidebarMenuItem>
         ))}
       </SidebarMenu>

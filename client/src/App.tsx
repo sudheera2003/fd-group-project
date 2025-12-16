@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { type CalendarEvent } from "@/components/ui/calendar";
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/sonner";
 
 // Layout
 import DashboardLayout from "@/layouts/dashboard-layout";
@@ -74,6 +75,7 @@ function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    <Toaster position="top-center" richColors/>
     </ThemeProvider>
   );
 }
