@@ -17,6 +17,7 @@ export function SiteHeader() {
       analytics: "Analytics",
       projects: "Projects",
       team: "Team",
+      viewUsers: "All Users",
     };
     
     // Default to capitalizing the path if not in the map

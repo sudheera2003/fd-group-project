@@ -73,12 +73,26 @@ io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 });
 
-console.log("Current Mongo URI:", process.env.MONGO_URI);
-
 // Database Connection (MongoDB)
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('MongoDB error:', err));
+
+  app.get('/users', async (req, res) => {
+  try {
+    // 1. Fetch both collections (excluding passwords for security)
+    const admins = await Admin.find().select('-password');
+    const organizers = await Organizer.find().select('-password');
+
+    // 2. Combine them into one array
+    const allUsers = [...admins, ...organizers];
+
+    // 3. Send back to frontend
+    res.json(allUsers);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

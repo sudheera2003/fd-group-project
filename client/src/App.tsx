@@ -13,6 +13,7 @@ import { LifecycleContent } from "@/components/content/lifecycle-content";
 import { AnalyticsContent } from "@/components/content/analytics-content";
 import { ProjectsContent } from "@/components/content/projects-content";
 import { TeamContent } from "@/components/content/team-content";
+import { ViewUsers } from "./components/content/view-users";
 
 function App() {
   // events data preserved here
@@ -72,6 +73,7 @@ function App() {
           <Route path="/analytics" element={<AnalyticsContent />} />
           <Route path="/projects" element={<ProjectsContent />} />
           <Route path="/team" element={<TeamContent />} />
+          <Route path="/viewUsers" element={<ViewUsers />} />
         </Route>
       </Routes>
     </BrowserRouter>
