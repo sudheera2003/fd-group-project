@@ -1,5 +1,7 @@
 import * as React from "react";
 import { useLocation, Link } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
+import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -35,10 +37,7 @@ import {
   LogOutIcon,
 } from "lucide-react";
 
-import {
-  Dialog,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import AddUser from "./content/register";
 
 // --- Data Arrays ---
@@ -100,17 +99,17 @@ const documents = [
   },
 ];
 
-const user = {
-  name: "shadcn",
-  email: "m@example.com",
-  avatar: "/avatars/shadcn.jpg",
-};
-
 // --- Main Component ---
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Use location to highlight the active menu item automatically
   const location = useLocation();
+  const { user: authUser } = useAuth();
 
+  const userData = {
+    name: authUser?.username || "User",
+    email: authUser?.email || "user@example.com",
+    avatar: "/avatars/avatar-1.jpg",
+  };
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -136,7 +135,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} />
+        <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
   );
@@ -215,7 +214,7 @@ function NavDocuments({
                     <span>{item.name}</span>
                   </SidebarMenuButton>
                 </DialogTrigger>
-                <AddUser setOpen={setIsDialogOpen} isOpen={isDialogOpen}/>
+                <AddUser setOpen={setIsDialogOpen} isOpen={isDialogOpen} />
               </Dialog>
             ) : (
               <SidebarMenuButton asChild>
@@ -270,6 +269,15 @@ function NavUser({
     avatar: string;
   };
 }) {
+  // 1. Access the context and router
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  // 2. Create the handler
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -281,7 +289,9 @@ function NavUser({
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {user.name?.[0]?.toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -302,7 +312,9 @@ function NavUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {user.name?.[0]?.toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
@@ -328,7 +340,7 @@ function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
               <LogOutIcon />
               Log out
             </DropdownMenuItem>
