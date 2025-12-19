@@ -10,8 +10,8 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app); // Wrap express with HTTP for WebSockets
 
-const Admin = require('./models/Admin');
-const Organizer = require('./models/Organizer');
+const Role = require('./models/Role');
+const User = require('./models/User');
 const bcrypt = require('bcryptjs');
 
 // Middleware
@@ -24,39 +24,44 @@ app.use(express.json());
 // });
 app.use('/api/auth', authRoutes);
 
+app.get('/roles', async (req, res) => {
+  try {
+    const roles = await Role.find();
+    res.json(roles);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch roles" });
+  }
+});
+
 app.post('/register', async (req, res) => {
   try {
+    // 'role' is now an ID (e.g., "65b12...") coming from the frontend
     const { username, email, password, role } = req.body;
 
-    // Check both collections to ensure unique emails across the whole system
-    const existingAdmin = await Admin.findOne({ email });
-    const existingOrganizer = await Organizer.findOne({ email });
-
-    if (existingAdmin || existingOrganizer) {
-      return res.status(400).json({ message: "User with this email already exists." });
+    // Security Check: Does this Role ID actually exist in the database?
+    const validRole = await Role.findById(role);
+    if (!validRole) {
+      return res.status(400).json({ message: "Invalid Role ID selected." });
     }
-    // ----------------------------------
 
-    // 1. Security: Hash the password
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists." });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 2. Logic: Decide where to save based on Role
-    if (role === 'admin') {
-      const newAdmin = new Admin({ username, email, password: hashedPassword, role });
-      await newAdmin.save();
-      return res.status(201).json({ message: "Admin registered successfully!" });
-    } 
-    
-    else if (role === 'organizer') {
-      const newOrganizer = new Organizer({ username, email, password: hashedPassword, role });
-      await newOrganizer.save();
-      return res.status(201).json({ message: "Organizer registered successfully!" });
-    } 
-    
-    else {
-      return res.status(400).json({ message: "Invalid Role Selected" });
-    }
+    const newUser = new User({
+      username,
+      email,
+      password: hashedPassword,
+      role: role
+    });
+
+    await newUser.save();
+
+    res.status(201).json({ message: "User registered successfully!" });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -77,20 +82,32 @@ io.on('connection', (socket) => {
 
 // Database Connection (MongoDB)
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB Atlas'))
+  .then(async() => {
+    console.log('Connected to MongoDB Atlas');
+
+    const rolesToCreate = ['admin', 'organizer', 'member'];
+
+    for (const roleName of rolesToCreate) {
+      // Check if this specific role exists
+      const exists = await Role.findOne({ name: roleName });
+      
+      // If not, create it
+      if (!exists) {
+        await Role.create({ name: roleName });
+        console.log(`Role '${roleName}' created!`);
+      }
+    }
+    console.log("Database seeding check complete.");
+  })
   .catch(err => console.error('MongoDB error:', err));
 
-  app.get('/users', async (req, res) => {
+app.get('/users', async (req, res) => {
   try {
-    // 1. Fetch both collections (excluding passwords for security)
-    const admins = await Admin.find().select('-password');
-    const organizers = await Organizer.find().select('-password');
+    const users = await User.find()
+      .select('-password')
+      .populate('role', 'name'); 
 
-    // 2. Combine them into one array
-    const allUsers = [...admins, ...organizers];
-
-    // 3. Send back to frontend
-    res.json(allUsers);
+    res.json(users);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch users" });
   }

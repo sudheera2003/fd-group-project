@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -12,11 +12,16 @@ import {
   type ColumnFiltersState,
   type SortingState,
   type VisibilityState,
-} from "@tanstack/react-table"
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Loader2 } from "lucide-react"
+} from "@tanstack/react-table";
+import {
+  ArrowUpDown,
+  ChevronDown,
+  MoreHorizontal,
+  Loader2,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -25,8 +30,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -34,23 +39,27 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { toast } from "sonner"
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 // 1. Define the User shape matching your MongoDB Data
 export type User = {
-  _id: string
-  username: string
-  email: string
-  role: "admin" | "organizer"
-}
+  _id: string;
+  username: string;
+  email: string;
+  // Role is now an object containing a name
+  role: {
+    _id: string;
+    name: string;
+  };
+};
 
 // 2. Define Columns
 export const columns: ColumnDef<User>[] = [
@@ -79,12 +88,18 @@ export const columns: ColumnDef<User>[] = [
   {
     accessorKey: "_id",
     header: "ID",
-    cell: ({ row }) => <div className="w-[80px] truncate font-mono text-xs mx-auto">{row.getValue("_id")}</div>,
+    cell: ({ row }) => (
+      <div className="w-[80px] truncate font-mono text-xs mx-auto">
+        {row.getValue("_id")}
+      </div>
+    ),
   },
   {
     accessorKey: "username",
     header: "Name",
-    cell: ({ row }) => <div className="font-medium capitalize">{row.getValue("username")}</div>,
+    cell: ({ row }) => (
+      <div className="font-medium capitalize">{row.getValue("username")}</div>
+    ),
   },
   {
     accessorKey: "email",
@@ -97,7 +112,7 @@ export const columns: ColumnDef<User>[] = [
           Email
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
     cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
   },
@@ -105,18 +120,29 @@ export const columns: ColumnDef<User>[] = [
     accessorKey: "role",
     header: "Role",
     cell: ({ row }) => {
-      const role = row.getValue("role") as string
+      const roleName = row.original.role?.name || "No Role";
+
+      // colors map
+      const colors: Record<string, string> = {
+        admin: "bg-purple-100 text-purple-800",
+        organizer: "bg-blue-100 text-blue-800",
+        member: "bg-green-100 text-green-800",
+      };
+
+      const badgeClass = colors[roleName] || "bg-gray-100 text-gray-800";
+
       return (
         <div
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-            ${role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${badgeClass}`}
         >
-          {role}
+          {roleName}
         </div>
-      )
+      );
     },
+    // Update filter to look at the name property
     filterFn: (row, id, value) => {
-      return value === "all" ? true : row.getValue(id) === value;
+      const roleName = row.original.role?.name;
+      return value === "all" ? true : roleName === value;
     },
   },
   {
@@ -124,7 +150,7 @@ export const columns: ColumnDef<User>[] = [
     enableHiding: false,
     header: "Actions",
     cell: ({ row }) => {
-      const user = row.original
+      const user = row.original;
 
       return (
         <DropdownMenu>
@@ -150,18 +176,21 @@ export const columns: ColumnDef<User>[] = [
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      )
+      );
     },
   },
-]
+];
 
 export function ViewUsers() {
-  const [data, setData] = React.useState<User[]>([]) // State for Real Data
-  const [loading, setLoading] = React.useState(true) // Loading State
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
+  const [data, setData] = React.useState<User[]>([]); // State for Real Data
+  const [loading, setLoading] = React.useState(true); // Loading State
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = React.useState({});
 
   // 3. Fetch Data from Backend
   React.useEffect(() => {
@@ -198,10 +227,14 @@ export function ViewUsers() {
       columnVisibility,
       rowSelection,
     },
-  })
+  });
 
   if (loading) {
-    return <div className="flex h-48 w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
+    return (
+      <div className="flex h-48 w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -219,7 +252,11 @@ export function ViewUsers() {
 
         {/* Role Filter (Dropdown) */}
         <Select
-          onValueChange={(value) => table.getColumn("role")?.setFilterValue(value === "all" ? "" : value)}
+          onValueChange={(value) =>
+            table
+              .getColumn("role")
+              ?.setFilterValue(value === "all" ? "" : value)
+          }
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by Role" />
@@ -254,7 +291,7 @@ export function ViewUsers() {
                   >
                     {column.id}
                   </DropdownMenuCheckboxItem>
-                )
+                );
               })}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -275,7 +312,7 @@ export function ViewUsers() {
                             header.getContext()
                           )}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
@@ -310,7 +347,7 @@ export function ViewUsers() {
           </TableBody>
         </Table>
       </div>
-      
+
       {/* Pagination Controls */}
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
@@ -337,5 +374,5 @@ export function ViewUsers() {
         </div>
       </div>
     </div>
-  )
+  );
 }

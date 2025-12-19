@@ -10,7 +10,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogClose
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,25 +30,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // Update the props interface to include the dialog state control
 interface AddUserProps {
   setOpen: (open: boolean) => void;
-  isOpen: boolean; 
+  isOpen: boolean;
 }
+
+type RoleType = {
+  _id: string;
+  name: string;
+};
 
 // Fixed schema
 const formSchema = z.object({
   username: z.string().min(2, "Username must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
   password: z.string().min(6, "Password must be at least 6 characters."),
-  // Remove the object with required_error
-  role: z.enum(["admin", "organizer"]),
+  role: z.string().min(1, "Please select a role"),
 });
 
 // Pass the setOpen prop from the parent AppSidebar
 export default function AddUser({ setOpen, isOpen }: AddUserProps) {
+  const [roles, setRoles] = useState<RoleType[]>([]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -57,7 +63,23 @@ export default function AddUser({ setOpen, isOpen }: AddUserProps) {
       password: "",
     },
   });
-  
+
+  useEffect(() => {
+    async function fetchRoles() {
+      try {
+        const res = await fetch("http://localhost:5000/roles");
+        if (res.ok) {
+          const data = await res.json();
+          setRoles(data);
+        }
+      } catch (error) {
+        console.error("Failed to load roles", error);
+        toast.error("Could not load role options");
+      }
+    }
+    fetchRoles();
+  }, []);
+
   useEffect(() => {
     if (!isOpen) {
       form.reset();
@@ -102,7 +124,6 @@ export default function AddUser({ setOpen, isOpen }: AddUserProps) {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          
           {/* Username Field */}
           <FormField
             control={form.control}
@@ -158,15 +179,28 @@ export default function AddUser({ setOpen, isOpen }: AddUserProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Role</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="organizer">Organizer</SelectItem>
+                    {roles.length > 0 ? (
+                      roles.map((role) => (
+                        // CHANGE THIS: Use role._id as the value, not role.name
+                        <SelectItem key={role._id} value={role._id}>
+                          <span className="capitalize">{role.name}</span>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="loading" disabled>
+                        Loading roles...
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -174,10 +208,11 @@ export default function AddUser({ setOpen, isOpen }: AddUserProps) {
             )}
           />
 
-
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
             </DialogClose>
             <Button type="submit">Save User</Button>
           </DialogFooter>
