@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 // Update the props interface to include the dialog state control
 interface AddUserProps {
@@ -85,6 +86,8 @@ export default function AddUser({ setOpen, isOpen }: AddUserProps) {
       form.reset();
     }
   }, [isOpen, form]);
+
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -162,7 +165,28 @@ export default function AddUser({ setOpen, isOpen }: AddUserProps) {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="******" {...field} />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="******"
+                      className="pr-10" // Add padding to the right so text doesn't overlap icon
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                      <span className="sr-only">
+                        {showPassword ? "Hide password" : "Show password"}
+                      </span>
+                    </button>
+                  </div>
                 </FormControl>
                 <FormDescription>
                   password must be at least 6 characters.
