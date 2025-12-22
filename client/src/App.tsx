@@ -15,6 +15,7 @@ import { ProjectsContent } from "@/components/content/projects-content";
 import { TeamContent } from "@/components/content/team-content";
 import { ViewUsers } from "./components/content/view-users";
 import ForgotPasswordPage from "@/components/content/forgot-password";
+import { ViewEventTypes } from "./components/content/event-types";
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -314,6 +315,7 @@ function App() {
               <Route path="/projects" element={<ProjectsContent />} />
               <Route path="/team" element={<TeamContent />} />
               <Route path="/viewUsers" element={<ViewUsers />} />
+              <Route path="/eventTypes" element={<ViewEventTypes />} />
             </Route>
           ) : (
             // Redirect any unknown or protected path to login if not authenticated

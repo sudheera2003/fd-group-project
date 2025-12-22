@@ -87,7 +87,7 @@ const documents = [
 const eventFormEdit = [
   {
     title: "Event Types",
-    url: "#",
+    url: "/eventTypes",
   },
   {
     title: "Venues",
@@ -217,7 +217,6 @@ function EditEventFrom({
     </SidebarGroup>
   );
 }
-
 
 function NavDocuments({
   items,

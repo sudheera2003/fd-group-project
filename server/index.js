@@ -12,16 +12,13 @@ const server = http.createServer(app); // Wrap express with HTTP for WebSockets
 
 const Role = require('./models/Role');
 const User = require('./models/User');
+const EventType = require('./models/EventTypes')
 const bcrypt = require('bcryptjs');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Basic Route
-// app.get('/', (req, res) => {
-//   res.send('Backend is running!');
-// });
 app.use('/api/auth', authRoutes);
 
 app.get('/roles', async (req, res) => {
@@ -110,6 +107,15 @@ app.get('/users', async (req, res) => {
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+app.get('/api/event-types', async (req, res) => {
+  try {
+    const types = await EventType.find().sort({ name: 1 });
+    res.json(types);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch event types" });
   }
 });
 
