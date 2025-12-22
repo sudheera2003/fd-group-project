@@ -12,7 +12,7 @@ import { DashboardContent } from "@/components/content/dashboard-content";
 import { LifecycleContent } from "@/components/content/lifecycle-content";
 import { AnalyticsContent } from "@/components/content/analytics-content";
 import { ProjectsContent } from "@/components/content/projects-content";
-import { TeamContent } from "@/components/content/team-content";
+import TeamsPage from "@/components/content/team-content";
 import { ViewUsers } from "./components/content/view-users";
 import ForgotPasswordPage from "@/components/content/forgot-password";
 
@@ -312,7 +312,7 @@ function App() {
               <Route path="/lifecycle" element={<LifecycleContent />} />
               <Route path="/analytics" element={<AnalyticsContent />} />
               <Route path="/projects" element={<ProjectsContent />} />
-              <Route path="/team" element={<TeamContent />} />
+              <Route path="/team" element={<TeamsPage />} />
               <Route path="/viewUsers" element={<ViewUsers />} />
             </Route>
           ) : (
