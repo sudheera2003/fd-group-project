@@ -35,6 +35,9 @@ import {
   CreditCardIcon,
   BellIcon,
   LogOutIcon,
+  CheckSquareIcon,
+  type LucideIcon,
+  Calendar,
 } from "lucide-react";
 
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
@@ -105,6 +108,36 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation();
   const { user: authUser } = useAuth();
 
+  // Define menus for different roles
+  const adminMenu = [
+    { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
+    { title: "Lifecycle", url: "/lifecycle", icon: LayersIcon },
+    { title: "All Projects", url: "/projects", icon: LayersIcon },
+    { title: "User Management", url: "/admin/viewUsers", icon: UserCircleIcon },
+    { title: "Analytics", url: "/admin/analytics", icon: DatabaseIcon },
+    { title: "Team", url: "/team", icon: UserCircleIcon },
+  ];
+
+  const organizerMenu = [
+    { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
+    { title: "My Projects", url: "/organizer/projects", icon: LayersIcon },
+    { title: "My Tasks", url: "/organizer/tasks", icon: CheckSquareIcon },
+    { title: "Team Chat", url: "/team", icon: UserCircleIcon },
+  ];
+
+  const memberMenu = [
+    { title: "My Tasks", url: "/member/tasks", icon: CheckSquareIcon },
+    { title: "Schedule", url: "/member/schedule", icon: Calendar },
+    { title: "Team Chat", url: "/team", icon: UserCircleIcon },
+  ];
+
+  let currentMenu = memberMenu; 
+  if (authUser?.role === "admin") {
+    currentMenu = adminMenu;
+  } else if (authUser?.role === "organizer") {
+    currentMenu = organizerMenu;
+  }
+
   const userData = {
     name: authUser?.username || "User",
     email: authUser?.email || "user@example.com",
@@ -130,8 +163,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} currentPath={location.pathname} />
-        <NavDocuments items={documents} />
+        <NavMain items={currentMenu} currentPath={location.pathname} />
+        {authUser?.role === "admin" &&<NavDocuments items={documents} />}
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
@@ -150,7 +183,7 @@ function NavMain({
   items: {
     title: string;
     url: string;
-    id: string;
+    icon: LucideIcon;
   }[];
   currentPath: string;
 }) {
@@ -179,7 +212,7 @@ function NavMain({
                 isActive={currentPath === item.url}
               >
                 <Link to={item.url}>
-                  <PanelLeftIcon />
+                  {React.createElement(item.icon)}
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>

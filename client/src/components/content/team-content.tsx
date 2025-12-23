@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Plus, Edit, MoreHorizontal, ChevronDown, User as UserIcon } from "lucide-react";
+import { Plus, MoreHorizontal, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import CreateTeam from "./create-team";
+import CreateTeamForm from "./admin/create-team";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,11 @@ type Team = {
   _id: string;
   name: string;
   description: string;
+  organizer: {
+    _id: string;
+    username: string;
+    email: string;
+  };
   members: {
     _id: string;
     username: string;
@@ -80,7 +85,7 @@ export default function TeamsPage() {
 
   const fetchTeams = async () => {
     try {
-      const res = await fetch("http://localhost:5000/teams");
+      const res = await fetch("http://localhost:5000/api/teams");
       const data = await res.json();
       if (res.ok) setTeams(data);
     } catch (error) {
@@ -94,7 +99,9 @@ export default function TeamsPage() {
       {
         accessorKey: "name",
         header: "Team Name",
-        cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
+        cell: ({ row }) => (
+          <div className="font-medium">{row.getValue("name")}</div>
+        ),
       },
       {
         accessorKey: "description",
@@ -106,6 +113,25 @@ export default function TeamsPage() {
         ),
       },
       {
+        accessorKey: "organizer",
+        header: "Organizer",
+        cell: ({ row }) => {
+          const organizer = row.original.organizer;
+          return (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-6 w-6">
+                <AvatarFallback>
+                  {organizer?.username?.[0] || "?"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium">
+                {organizer?.username || "N/A"}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: "members",
         header: "Members",
         cell: ({ row }) => {
@@ -113,8 +139,13 @@ export default function TeamsPage() {
           return (
             <div className="flex items-center -space-x-3">
               {members.slice(0, 5).map((member) => (
-                <Avatar key={member._id} className="h-8 w-8 border-2 border-background">
-                  <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${member.username}`} />
+                <Avatar
+                  key={member._id}
+                  className="h-8 w-8 border-2 border-background"
+                >
+                  <AvatarImage
+                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${member.username}`}
+                  />
                   <AvatarFallback>{member.username.charAt(0)}</AvatarFallback>
                 </Avatar>
               ))}
@@ -141,7 +172,7 @@ export default function TeamsPage() {
       },
       {
         id: "actions",
-        header: ({ column }) => <div className="text-right">Actions</div>,
+        header: ({ }) => <div className="text-right">Actions</div>,
         cell: ({ row }) => {
           const team = row.original;
           const isOwner = user?.id === team.createdBy?._id;
@@ -161,13 +192,18 @@ export default function TeamsPage() {
                     <DropdownMenuItem onClick={() => alert("Edit Coming Soon")}>
                       Edit Team
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600" onClick={() => alert("Delete Coming Soon")}>
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      onClick={() => alert("Delete Coming Soon")}
+                    >
                       Delete Team
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <span className="text-xs text-muted-foreground italic">View Only</span>
+                <span className="text-xs text-muted-foreground italic">
+                  View Only
+                </span>
               )}
             </div>
           );
@@ -208,7 +244,7 @@ export default function TeamsPage() {
               <Plus className="mr-2 h-4 w-4" /> Create New Team
             </Button>
           </DialogTrigger>
-          
+
           <DialogContent className="sm:max-w-[500px] overflow-y-auto p-8 [&>button]:hidden">
             <DialogHeader className="sr-only">
               <DialogTitle>Create Team</DialogTitle>
@@ -216,7 +252,7 @@ export default function TeamsPage() {
                 Fill out the form below to create a new team.
               </DialogDescription>
             </DialogHeader>
-            <CreateTeam setOpen={setIsDialogOpen} />
+            <CreateTeamForm setOpen={setIsDialogOpen} />
           </DialogContent>
         </Dialog>
       </div>

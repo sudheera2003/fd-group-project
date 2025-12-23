@@ -11,10 +11,13 @@ import { LoginForm } from "./components/content/login-form";
 import { DashboardContent } from "@/components/content/dashboard-content";
 import { LifecycleContent } from "@/components/content/lifecycle-content";
 import { AnalyticsContent } from "@/components/content/analytics-content";
-import { ProjectsContent } from "@/components/content/projects-content";
+import { ProjectsContent } from "@/components/content/admin/projects-content";
 import TeamsPage from "@/components/content/team-content";
 import { ViewUsers } from "./components/content/view-users";
+import ProjectDashboard from "@/components/content/organizer/project-dashboard";
 import ForgotPasswordPage from "@/components/content/forgot-password";
+import OrganizerProjects from "./components/content/organizer/organizer-projects";
+import TaskManagerPage from "@/components/content/organizer/task-manager-page";
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -314,6 +317,17 @@ function App() {
               <Route path="/projects" element={<ProjectsContent />} />
               <Route path="/team" element={<TeamsPage />} />
               <Route path="/viewUsers" element={<ViewUsers />} />
+              {/* Organizer Routes */}
+              <Route
+                path="/organizer/projects"
+                element={<OrganizerProjects />}
+              />
+              {/* The :id param allows us to grab the ID in the component */}
+              <Route
+                path="/organizer/projects/:id"
+                element={<ProjectDashboard />}
+              />
+              <Route path="/organizer/events/:eventId/tasks" element={<TaskManagerPage />} />
             </Route>
           ) : (
             // Redirect any unknown or protected path to login if not authenticated

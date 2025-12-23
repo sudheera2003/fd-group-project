@@ -21,7 +21,7 @@ export function SiteHeader() {
     };
     
     // Default to capitalizing the path if not in the map
-    return titles[path] || path.charAt(0).toUpperCase() + path.slice(1);
+    return titles[path] || "";
   };
 
   return (
