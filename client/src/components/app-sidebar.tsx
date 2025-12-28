@@ -69,21 +69,6 @@ const navMain = [
   },
 ];
 
-const navSecondary = [
-  {
-    title: "Settings",
-    url: "#",
-  },
-  {
-    title: "Get Help",
-    url: "#",
-  },
-  {
-    title: "Search",
-    url: "#",
-  },
-];
-
 const documents = [
   {
     name: "Add User",
@@ -96,6 +81,17 @@ const documents = [
   {
     name: "View All Users",
     url: "/viewUsers",
+  },
+];
+
+const eventFormEdit = [
+  {
+    title: "Event Types",
+    url: "#",
+  },
+  {
+    title: "Venues",
+    url: "#",
   },
 ];
 
@@ -132,7 +128,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMain items={navMain} currentPath={location.pathname} />
         <NavDocuments items={documents} />
-        <NavSecondary items={navSecondary} className="mt-auto" />
+        <EditEventFrom items={eventFormEdit} className="mt-auto"/>
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />
@@ -191,6 +187,38 @@ function NavMain({
   );
 }
 
+// event form edit section
+function EditEventFrom({
+  items,
+  ...props
+}: {
+  items: {
+    title: string;
+    url: string;
+  }[];
+} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+  return (
+    <SidebarGroup {...props}>
+      <SidebarGroupContent>
+        <SidebarGroupLabel>Event Form Management</SidebarGroupLabel>
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton asChild>
+                <Link to={item.url}>
+                  <SettingsIcon />
+                  <span>{item.title}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+
 function NavDocuments({
   items,
 }: {
@@ -227,35 +255,6 @@ function NavDocuments({
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
-    </SidebarGroup>
-  );
-}
-
-function NavSecondary({
-  items,
-  ...props
-}: {
-  items: {
-    title: string;
-    url: string;
-  }[];
-} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
-  return (
-    <SidebarGroup {...props}>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <Link to={item.url}>
-                  <SettingsIcon />
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
     </SidebarGroup>
   );
 }
