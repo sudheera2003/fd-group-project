@@ -140,7 +140,7 @@ export const columns: ColumnDef<User>[] = [
       );
     },
     // Update filter to look at the name property
-    filterFn: (row, id, value) => {
+    filterFn: (row, value) => {
       const roleName = row.original.role?.name;
       return value === "all" ? true : roleName === value;
     },
