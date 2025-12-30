@@ -74,15 +74,11 @@ const navMain = [
 
 const navSecondary = [
   {
-    title: "Settings",
+    title: "Venues",
     url: "#",
   },
   {
-    title: "Get Help",
-    url: "#",
-  },
-  {
-    title: "Search",
+    title: "Event Types",
     url: "#",
   },
 ];
@@ -275,6 +271,7 @@ function NavSecondary({
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (
     <SidebarGroup {...props}>
+      <SidebarGroupLabel>Event Form Settings</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (

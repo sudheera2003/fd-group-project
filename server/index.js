@@ -10,6 +10,8 @@ const teamRoutes = require('./routes/teamRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const userRoutes = require('./routes/userRoutes');
 const taskRoutes = require('./routes/taskRoutes');
+const venueRoutes = require('./routes/venueRoutes');
+const eventTypeRoutes = require('./routes/eventTypeRoutes');
 const { Server } = require('socket.io');
 
 const app = express();
@@ -18,6 +20,8 @@ const server = http.createServer(app); // Wrap express with HTTP for WebSockets
 const Role = require('./models/Role');
 const User = require('./models/User');
 const Team = require('./models/Team');
+const Venue = require('./models/Venue');
+const EventType = require('./models/EventType');
 const bcrypt = require('bcryptjs');
 
 // Middleware
@@ -34,6 +38,8 @@ app.use('/api/events', eventRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/', venueRoutes);
+app.use('/', eventTypeRoutes);
  
 app.get('/roles', async (req, res) => {
   try {
