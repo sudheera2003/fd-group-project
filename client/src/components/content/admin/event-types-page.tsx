@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -37,69 +37,36 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-// Type Definition
 export type EventType = {
   _id: string;
   name: string;
   description: string;
 };
 
-// Column Definitions
-export const columns: ColumnDef<EventType>[] = [
-  {
-    accessorKey: "name",
-    header: "Type Name",
-    cell: ({ row }) => (
-      <div className="flex items-center font-medium">
-        <Tag className="mr-2 h-3 w-3 text-muted-foreground" />
-        {row.getValue("name")}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "description",
-    header: "Description",
-    cell: ({ row }) => (
-      <div className="text-muted-foreground">
-        {row.getValue("description") || "—"}
-      </div>
-    ),
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Open menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => alert("Edit logic here")}>
-            Edit Type
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-red-600">
-            Delete Type
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
-  },
-];
-
 export default function EventTypesPage() {
   const [data, setData] = useState<EventType[]>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Form State
+  // UI States
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null); // Track Edit Mode
+
+  // Form States
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
@@ -116,27 +83,129 @@ export default function EventTypesPage() {
     fetchData();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  // --- PRE-FILL FORM FOR EDITING ---
+  const handleEdit = (type: EventType) => {
+    setEditingId(type._id);
+    setNewName(type.name);
+    setNewDesc(type.description);
+    setIsDialogOpen(true);
+  };
+
+  // --- RESET FORM ---
+  const resetForm = () => {
+    setEditingId(null);
+    setNewName("");
+    setNewDesc("");
+    setIsDialogOpen(false);
+  };
+
+  // --- UNIFIED SUBMIT ---
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = { name: newName, description: newDesc };
+
     try {
-      const res = await fetch("http://localhost:5000/event-types", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName, description: newDesc }),
-      });
+      let res;
+      if (editingId) {
+        // UPDATE MODE
+        res = await fetch(`http://localhost:5000/event-types/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        // CREATE MODE
+        res = await fetch("http://localhost:5000/event-types", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
       if (res.ok) {
-        toast.success("Event Type created!");
-        setIsDialogOpen(false);
-        setNewName("");
-        setNewDesc("");
+        toast.success(
+          editingId ? "Event Type updated!" : "Event Type created!"
+        );
+        resetForm();
         fetchData();
       } else {
-        toast.error("Failed to create type");
+        toast.error("Failed to save type");
       }
     } catch (e) {
       toast.error("Server error");
     }
   };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const res = await fetch(`http://localhost:5000/event-types/${deleteId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Event Type deleted");
+        fetchData();
+      } else {
+        toast.error("Failed to delete");
+      }
+    } catch (error) {
+      toast.error("Server error");
+    } finally {
+      setDeleteId(null);
+    }
+  };
+
+  const columns = useMemo<ColumnDef<EventType>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Type Name",
+        cell: ({ row }) => (
+          <div className="flex items-center font-medium">
+            <Tag className="mr-2 h-3 w-3 text-muted-foreground" />
+            {row.getValue("name")}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "description",
+        header: "Description",
+        cell: ({ row }) => (
+          <div className="text-muted-foreground">
+            {row.getValue("description") || "—"}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        enableHiding: false,
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              {/* EDIT BUTTON */}
+              <DropdownMenuItem onClick={() => handleEdit(row.original)}>
+                Edit Type
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-red-600 focus:text-red-600"
+                onClick={() => setDeleteId(row.original._id)}
+              >
+                Delete Type
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    []
+  );
 
   const table = useReactTable({
     data,
@@ -151,7 +220,29 @@ export default function EventTypesPage() {
 
   return (
     <div className="w-full p-8">
-      {/* HEADER WITH ADD BUTTON */}
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this event type.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={confirmDelete}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold">Event Types</h1>
@@ -160,7 +251,14 @@ export default function EventTypesPage() {
           </p>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        {/* SHARED DIALOG */}
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}
+        >
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" /> Add Event Type
@@ -168,9 +266,11 @@ export default function EventTypesPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Event Type</DialogTitle>
+              <DialogTitle>
+                {editingId ? "Edit Event Type" : "Add New Event Type"}
+              </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4 py-4">
+            <form onSubmit={handleSubmit} className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Type Name</Label>
                 <Input
@@ -189,14 +289,13 @@ export default function EventTypesPage() {
                 />
               </div>
               <Button type="submit" className="w-full">
-                Create Event Type
+                {editingId ? "Save Changes" : "Create Event Type"}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* FILTERS */}
       <div className="flex items-center py-4 gap-2">
         <Input
           placeholder="Filter types..."
@@ -230,7 +329,6 @@ export default function EventTypesPage() {
         </DropdownMenu>
       </div>
 
-      {/* TABLE */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -276,7 +374,6 @@ export default function EventTypesPage() {
           </TableBody>
         </Table>
       </div>
-      {/* Pagination Controls */}
       <div className="flex items-center justify-end space-x-2 py-4">
         <Button
           variant="outline"

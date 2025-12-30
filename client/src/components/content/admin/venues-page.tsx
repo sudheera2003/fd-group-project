@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -37,10 +37,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label"; // Ensure you have this or use simple label tag
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-// Type Definition
 export type Venue = {
   _id: string;
   name: string;
@@ -48,65 +57,17 @@ export type Venue = {
   capacity: number;
 };
 
-// Column Definitions
-export const columns: ColumnDef<Venue>[] = [
-  {
-    accessorKey: "name",
-    header: "Venue Name",
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("name")}</div>
-    ),
-  },
-  {
-    accessorKey: "location",
-    header: "Location",
-    cell: ({ row }) => (
-      <div className="flex items-center text-muted-foreground">
-        <MapPin className="mr-2 h-3 w-3" /> {row.getValue("location")}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "capacity",
-    header: "Capacity",
-    cell: ({ row }) => (
-      <div className="flex items-center">
-        <Users className="mr-2 h-3 w-3" /> {row.getValue("capacity")}
-      </div>
-    ),
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Open menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => alert("Edit logic here")}>
-            Edit Venue
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-red-600">
-            Delete Venue
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
-  },
-];
-
 export default function VenuesPage() {
   const [data, setData] = useState<Venue[]>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Form State
+  // UI States
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null); // Track Edit Mode
+
+  // Form States
   const [newName, setNewName] = useState("");
   const [newLocation, setNewLocation] = useState("");
   const [newCapacity, setNewCapacity] = useState("");
@@ -124,32 +85,139 @@ export default function VenuesPage() {
     fetchData();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  // --- PRE-FILL FORM FOR EDITING ---
+  const handleEdit = (venue: Venue) => {
+    setEditingId(venue._id);
+    setNewName(venue.name);
+    setNewLocation(venue.location);
+    setNewCapacity(venue.capacity.toString());
+    setIsDialogOpen(true); // Open the shared dialog
+  };
+
+  // --- RESET FORM ---
+  const resetForm = () => {
+    setEditingId(null);
+    setNewName("");
+    setNewLocation("");
+    setNewCapacity("");
+    setIsDialogOpen(false);
+  };
+
+  // --- UNIFIED SUBMIT (CREATE or UPDATE) ---
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      name: newName,
+      location: newLocation,
+      capacity: Number(newCapacity),
+    };
+
     try {
-      const res = await fetch("http://localhost:5000/venues", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newName,
-          location: newLocation,
-          capacity: Number(newCapacity),
-        }),
-      });
+      let res;
+      if (editingId) {
+        // UPDATE MODE
+        res = await fetch(`http://localhost:5000/venues/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        // CREATE MODE
+        res = await fetch("http://localhost:5000/venues", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
       if (res.ok) {
-        toast.success("Venue created!");
-        setIsDialogOpen(false);
-        setNewName("");
-        setNewLocation("");
-        setNewCapacity("");
+        toast.success(editingId ? "Venue updated!" : "Venue created!");
+        resetForm();
         fetchData();
       } else {
-        toast.error("Failed to create venue");
+        toast.error("Failed to save venue");
       }
     } catch (e) {
       toast.error("Server error");
     }
   };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const res = await fetch(`http://localhost:5000/venues/${deleteId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Venue deleted");
+        fetchData();
+      } else {
+        toast.error("Failed to delete");
+      }
+    } catch (error) {
+      toast.error("Server error");
+    } finally {
+      setDeleteId(null);
+    }
+  };
+
+  const columns = useMemo<ColumnDef<Venue>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Venue Name",
+        cell: ({ row }) => (
+          <div className="font-medium">{row.getValue("name")}</div>
+        ),
+      },
+      {
+        accessorKey: "location",
+        header: "Location",
+        cell: ({ row }) => (
+          <div className="flex items-center text-muted-foreground">
+            <MapPin className="mr-2 h-3 w-3" /> {row.getValue("location")}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "capacity",
+        header: "Capacity",
+        cell: ({ row }) => (
+          <div className="flex items-center">
+            <Users className="mr-2 h-3 w-3" /> {row.getValue("capacity")}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        enableHiding: false,
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              {/* EDIT BUTTON */}
+              <DropdownMenuItem onClick={() => handleEdit(row.original)}>
+                Edit Venue
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-red-600 focus:text-red-600"
+                onClick={() => setDeleteId(row.original._id)}
+              >
+                Delete Venue
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    []
+  );
 
   const table = useReactTable({
     data,
@@ -164,14 +232,43 @@ export default function VenuesPage() {
 
   return (
     <div className="w-full p-8">
-      {/* HEADER WITH ADD BUTTON */}
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the venue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={confirmDelete}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold">Venues</h1>
           <p className="text-muted-foreground">Manage your event locations.</p>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        {/* SHARED DIALOG FOR CREATE & EDIT */}
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm(); // Clear form when closed manually
+          }}
+        >
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" /> Add Venue
@@ -179,9 +276,11 @@ export default function VenuesPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Venue</DialogTitle>
+              <DialogTitle>
+                {editingId ? "Edit Venue" : "Add New Venue"}
+              </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4 py-4">
+            <form onSubmit={handleSubmit} className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Venue Name</Label>
                 <Input
@@ -208,14 +307,13 @@ export default function VenuesPage() {
                 />
               </div>
               <Button type="submit" className="w-full">
-                Create Venue
+                {editingId ? "Save Changes" : "Create Venue"}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* FILTERS */}
       <div className="flex items-center py-4 gap-2">
         <Input
           placeholder="Filter venues..."
@@ -249,7 +347,6 @@ export default function VenuesPage() {
         </DropdownMenu>
       </div>
 
-      {/* TABLE */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -295,7 +392,6 @@ export default function VenuesPage() {
           </TableBody>
         </Table>
       </div>
-      {/* Pagination Controls */}
       <div className="flex items-center justify-end space-x-2 py-4">
         <Button
           variant="outline"
