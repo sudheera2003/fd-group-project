@@ -18,9 +18,12 @@ import ProjectDashboard from "@/components/content/organizer/project-dashboard";
 import ForgotPasswordPage from "@/components/content/forgot-password";
 import OrganizerProjects from "./components/content/organizer/organizer-projects";
 import TaskManagerPage from "@/components/content/organizer/task-manager-page";
+import MemberTasks from "./components/content/member/member-tasks";
+import ProtectedRoute from "./components/protected-route";
+import ApprovalsPage from "./components/content/organizer/approvals-page";
 
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   // events data preserved here
   const [events] = useState<CalendarEvent[]>([
     // January 1-5
@@ -277,62 +280,54 @@ function App() {
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <BrowserRouter>
         <Routes>
-          {/* Public Route: Login */}
+          {/* --- 1. PUBLIC ROUTES --- */}
           <Route
             path="/login"
-            element={
-              !isAuthenticated ? (
-                <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-                  <div className="w-full max-w-sm">
-                    {/* Pass a function to simulate logging in */}
-                    <LoginForm />
-                  </div>
+            element={user ? <Navigate to="/" replace /> : (
+              <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+                <div className="w-full max-w-sm">
+                  <LoginForm />
                 </div>
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            }
+              </div>
+            )}
           />
           <Route
             path="/forgot-password"
-            element={
-              !isAuthenticated ? (
-                <ForgotPasswordPage />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            }
+            element={user ? <Navigate to="/" replace /> : <ForgotPasswordPage />}
           />
-
-          {/* Protected Routes: Dashboard Group */}
-          {isAuthenticated ? (
-            <Route element={<DashboardLayout />}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route
-                path="/dashboard"
-                element={<DashboardContent events={events} />}
-              />
+          {/* --- 2. PROTECTED ROUTES (Wrapped in Dashboard Layout) --- */}
+          <Route element={<DashboardLayout />}>
+            <Route element={<ProtectedRoute allowedRoles={['admin', 'organizer', 'member']} />}>
+              <Route path="/dashboard" element={<DashboardContent events={events} />} />
+            </Route>
+            {/* A. ADMIN ROUTES */}
+            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/lifecycle" element={<LifecycleContent />} />
               <Route path="/analytics" element={<AnalyticsContent />} />
-              <Route path="/projects" element={<ProjectsContent />} />
+              <Route path="/projects" element={<ProjectsContent />} /> 
               <Route path="/team" element={<TeamsPage />} />
               <Route path="/viewUsers" element={<ViewUsers />} />
-              {/* Organizer Routes */}
-              <Route
-                path="/organizer/projects"
-                element={<OrganizerProjects />}
-              />
-              {/* The :id param allows us to grab the ID in the component */}
-              <Route
-                path="/organizer/projects/:id"
-                element={<ProjectDashboard />}
-              />
-              <Route path="/organizer/events/:eventId/tasks" element={<TaskManagerPage />} />
+              {/* Admin Default Redirect */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Route>
-          ) : (
-            // Redirect any unknown or protected path to login if not authenticated
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          )}
+            {/* B. ORGANIZER ROUTES */}
+            <Route element={<ProtectedRoute allowedRoles={['organizer']} />}>
+              <Route path="/organizer/projects" element={<OrganizerProjects />} />
+              <Route path="/organizer/projects/:id" element={<ProjectDashboard />} />
+              <Route path="/organizer/events/:eventId/tasks" element={<TaskManagerPage />} />
+              <Route path="/organizer/approvals" element={<ApprovalsPage />} />
+              {/* Organizer Default Redirect */}
+              <Route path="/" element={<Navigate to="/organizer/projects" replace />} />
+            </Route>
+            {/* C. MEMBER ROUTES */}
+            <Route element={<ProtectedRoute allowedRoles={['member']} />}>
+              <Route path="/member/tasks" element={<MemberTasks />} />
+              {/* Member Default Redirect */}
+              <Route path="/" element={<Navigate to="/member/tasks" replace />} />
+            </Route>
+          </Route>
+          {/* --- 3. CATCH ALL --- */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-center" richColors />

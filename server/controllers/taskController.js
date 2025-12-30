@@ -50,4 +50,89 @@ const getTeamMembers = async (req, res) => {
   }
 };
 
-module.exports = { getEventTasks, createTask, deleteTask, getTeamMembers };
+// Get tasks assigned to a specific user
+const getMemberTasks = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    // We populate 'eventId' so the member knows WHICH event the task is for
+    const tasks = await Task.find({ assignedTo: userId })
+      .populate('eventId', 'name date venue') 
+      .sort({ createdAt: -1 }); // Newest first
+    res.status(200).json(tasks);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Update task status
+const updateTaskStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const task = await Task.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true } // Return the updated document
+    );
+    res.status(200).json(task);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const submitTask = async (req, res) => {
+  try {
+    const { note, link } = req.body;
+    const task = await Task.findByIdAndUpdate(
+      req.params.id,
+      { 
+        status: 'In Review',
+        submissionNote: note,
+        submissionLink: link,
+        submittedAt: new Date(),
+        organizerFeedback: "" // Clear old rejection feedback if any
+      },
+      { new: true }
+    );
+    res.status(200).json(task);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const reviewTask = async (req, res) => {
+  try {
+    const { status, feedback } = req.body; // Status will be 'Done' or 'In Progress' (Reject)
+    
+    const updateData = {
+      status,
+      reviewedAt: new Date(),
+      organizerFeedback: feedback || "" 
+    };
+
+    const task = await Task.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+    res.status(200).json(task);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getPendingReviews = async (req, res) => {
+  try {
+    // In a real app, you would filter this by the Organizer's ID (via req.user)
+    // For now, we fetch ALL tasks with status 'In Review'
+    const tasks = await Task.find({ status: 'In Review' })
+      .populate('eventId', 'name') // We need to know which Event it belongs to
+      .populate('assignedTo', 'username email') // We need to know who submitted it
+      .sort({ submittedAt: -1 }); // Oldest or Newest first? Let's do newest.
+
+    res.status(200).json(tasks);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { getEventTasks, createTask, deleteTask, getTeamMembers, getMemberTasks, updateTaskStatus, submitTask, reviewTask, getPendingReviews };
