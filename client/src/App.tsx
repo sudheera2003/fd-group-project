@@ -21,6 +21,8 @@ import TaskManagerPage from "@/components/content/organizer/task-manager-page";
 import MemberTasks from "./components/content/member/member-tasks";
 import ProtectedRoute from "./components/protected-route";
 import ApprovalsPage from "./components/content/organizer/approvals-page";
+import VenuesPage from "./components/content/admin/venues-page";
+import EventTypesPage from "./components/content/admin/event-types-page";
 
 function App() {
   const { user, isLoading } = useAuth();
@@ -307,6 +309,8 @@ function App() {
               <Route path="/projects" element={<ProjectsContent />} /> 
               <Route path="/team" element={<TeamsPage />} />
               <Route path="/viewUsers" element={<ViewUsers />} />
+              <Route path="/venues" element={<VenuesPage />} />
+              <Route path="/event-types" element={<EventTypesPage />} />
               {/* Admin Default Redirect */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Route>

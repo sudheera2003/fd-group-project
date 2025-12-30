@@ -75,11 +75,11 @@ const navMain = [
 const navSecondary = [
   {
     title: "Venues",
-    url: "#",
+    url: "/venues",
   },
   {
     title: "Event Types",
-    url: "#",
+    url: "/event-types",
   },
 ];
 
