@@ -117,7 +117,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const organizerMenu = [
     { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
     { title: "My Projects", url: "/organizer/projects", icon: LayersIcon },
-    { title: "My Tasks", url: "/organizer/tasks", icon: CheckSquareIcon },
+    { title: "Approvals", url: "/organizer/approvals", icon: CheckSquareIcon },
     { title: "Team Chat", url: "/team", icon: UserCircleIcon },
   ];
 
