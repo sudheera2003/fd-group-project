@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useAuth } from "@/hooks/use-auth"; // Ensure this path is correct for your project
 import {
   flexRender,
   getCoreRowModel,
@@ -18,6 +19,8 @@ import {
   ChevronDown,
   MoreHorizontal,
   Loader2,
+  ShieldAlert,
+  ShieldCheck
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +33,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
@@ -47,168 +53,264 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+// --- NEW IMPORTS FOR DELETE DIALOG ---
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+// -------------------------------------
 import { toast } from "sonner";
 
-// 1. Define the User shape matching your MongoDB Data
 export type User = {
   _id: string;
   username: string;
   email: string;
-  // Role is now an object containing a name
   role: {
     _id: string;
     name: string;
   };
 };
 
-// 2. Define Columns
-export const columns: ColumnDef<User>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "_id",
-    header: "ID",
-    cell: ({ row }) => (
-      <div className="w-[80px] truncate font-mono text-xs mx-auto">
-        {row.getValue("_id")}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "username",
-    header: "Name",
-    cell: ({ row }) => (
-      <div className="font-medium capitalize">{row.getValue("username")}</div>
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Email
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
-  },
-  {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => {
-      const roleName = row.original.role?.name || "No Role";
-
-      // colors map
-      const colors: Record<string, string> = {
-        admin: "bg-purple-100 text-purple-800",
-        organizer: "bg-blue-100 text-blue-800",
-        member: "bg-green-100 text-green-800",
-      };
-
-      const badgeClass = colors[roleName] || "bg-gray-100 text-gray-800";
-
-      return (
-        <div
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${badgeClass}`}
-        >
-          {roleName}
-        </div>
-      );
-    },
-    // Update filter to look at the name property
-    filterFn: (row, value) => {
-      const roleName = row.original.role?.name;
-      return value === "all" ? true : roleName === value;
-    },
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    header: "Actions",
-    cell: ({ row }) => {
-      const user = row.original;
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(user._id)}
-            >
-              Copy User ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => alert(`Editing ${user.username}`)}>
-              Edit User
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
-              Delete User
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    },
-  },
-];
+export type RoleOption = {
+  _id: string;
+  name: string;
+};
 
 export function ViewUsers() {
-  const [data, setData] = React.useState<User[]>([]); // State for Real Data
-  const [loading, setLoading] = React.useState(true); // Loading State
+  const { user: currentUser } = useAuth();
+  const [data, setData] = React.useState<User[]>([]);
+  const [roleOptions, setRoleOptions] = React.useState<RoleOption[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  
+  // Table State
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
-  // 3. Fetch Data from Backend
-  React.useEffect(() => {
-    async function fetchUsers() {
-      try {
-        const res = await fetch("http://localhost:5000/users");
-        if (!res.ok) throw new Error("Failed to fetch");
-        const users = await res.json();
-        setData(users);
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to load users from database");
-      } finally {
-        setLoading(false);
-      }
+  // --- DELETE STATE ---
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [usersRes, rolesRes] = await Promise.all([
+        fetch("http://localhost:5000/users"),
+        fetch("http://localhost:5000/roles")
+      ]);
+
+      if (!usersRes.ok || !rolesRes.ok) throw new Error("Failed to fetch data");
+
+      const users = await usersRes.json();
+      const roles = await rolesRes.json();
+
+      setData(users);
+      setRoleOptions(roles);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
     }
-    fetchUsers();
+  };
+
+  React.useEffect(() => {
+    fetchData();
   }, []);
+
+  // --- HANDLERS ---
+  const handleRoleChange = async (userId: string, newRoleName: string) => {
+    try {
+      const res = await fetch(`http://localhost:5000/users/${userId}/role`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleName: newRoleName }),
+      });
+
+      if (res.ok) {
+        toast.success(`User role updated to ${newRoleName}`);
+        fetchData();
+      } else {
+        toast.error("Failed to update role");
+      }
+    } catch (error) {
+      toast.error("Server error");
+    }
+  };
+
+  // --- CONFIRM DELETE FUNCTION ---
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const res = await fetch(`http://localhost:5000/users/${deleteId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast.success("User deleted successfully");
+        fetchData(); // Refresh list
+      } else {
+        toast.error("Failed to delete user");
+      }
+    } catch (error) {
+      toast.error("Server error");
+    } finally {
+      setDeleteId(null); // Close dialog
+    }
+  };
+
+  const columns = React.useMemo<ColumnDef<User>[]>(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "_id",
+      header: "ID",
+      cell: ({ row }) => (
+        <div className="w-[80px] truncate font-mono text-xs mx-auto">
+          {row.getValue("_id")}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "username",
+      header: "Name",
+      cell: ({ row }) => (
+        <div className="font-medium capitalize">{row.getValue("username")}</div>
+      ),
+    },
+    {
+      accessorKey: "email",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Email
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+    },
+    {
+      accessorKey: "role",
+      header: "Role",
+      cell: ({ row }) => {
+        const roleName = row.original.role?.name || "No Role";
+        const colors: Record<string, string> = {
+          admin: "bg-purple-100 text-purple-800",
+          organizer: "bg-blue-100 text-blue-800",
+          member: "bg-green-100 text-green-800",
+        };
+        const badgeClass = colors[roleName] || "bg-gray-100 text-gray-800";
+
+        return (
+          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${badgeClass}`}>
+            {roleName}
+          </div>
+        );
+      },
+      filterFn: (row, id, value) => {
+        const roleName = row.original.role?.name;
+        return value === "all" ? true : roleName === value;
+      },
+    },
+    {
+      id: "actions",
+      enableHiding: false,
+      header: "Actions",
+      cell: ({ row }) => {
+        const userRow = row.original;
+        const currentRole = userRow.role?.name;
+        const isSelf = currentUser?.id === userRow._id;
+
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              
+              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(userRow._id)}>
+                Copy User ID
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger disabled={isSelf}>
+                  {isSelf ? (
+                    <span className="text-muted-foreground">Cannot Change Own Role</span>
+                  ) : (
+                    <>
+                      Change Role
+                    </>
+                  )}
+                </DropdownMenuSubTrigger>
+                {!isSelf && (
+                  <DropdownMenuSubContent>
+                    {roleOptions.length > 0 ? (
+                      roleOptions.map((role) => (
+                        <DropdownMenuItem
+                          key={role._id}
+                          disabled={role.name === currentRole}
+                          onClick={() => handleRoleChange(userRow._id, role.name)}
+                          className="capitalize"
+                        >
+                          {role.name === currentRole && "✓ "}
+                          {role.name}
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled>Loading roles...</DropdownMenuItem>
+                    )}
+                  </DropdownMenuSubContent>
+                )}
+              </DropdownMenuSub>
+
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem 
+                className="text-red-600 focus:text-red-600"
+                disabled={isSelf} // Prevent deleting self
+                onClick={() => setDeleteId(userRow._id)} // <--- TRIGGER DIALOG
+              >
+                Delete User
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ], [roleOptions, currentUser]);
 
   const table = useReactTable({
     data,
@@ -239,8 +341,27 @@ export function ViewUsers() {
 
   return (
     <div className="w-full px-16">
+      {/* --- DELETE CONFIRMATION DIALOG --- */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user
+              account and remove their data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={confirmDelete}>
+              Delete User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* --- TABLE CONTROLS --- */}
       <div className="flex items-center py-4 gap-4">
-        {/* Email Filter */}
         <Input
           placeholder="Filter emails..."
           value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
@@ -250,12 +371,9 @@ export function ViewUsers() {
           className="max-w-sm"
         />
 
-        {/* Role Filter (Dropdown) */}
         <Select
           onValueChange={(value) =>
-            table
-              .getColumn("role")
-              ?.setFilterValue(value === "all" ? "" : value)
+            table.getColumn("role")?.setFilterValue(value === "all" ? "" : value)
           }
         >
           <SelectTrigger className="w-[180px]">
@@ -263,12 +381,14 @@ export function ViewUsers() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="admin">Admin</SelectItem>
-            <SelectItem value="organizer">Organizer</SelectItem>
+            {roleOptions.map((role) => (
+              <SelectItem key={role._id} value={role.name} className="capitalize">
+                {role.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
-        {/* Column Visibility Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="">
@@ -302,44 +422,28 @@ export function ViewUsers() {
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id} className="text-center">
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  );
-                })}
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="text-center">
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="text-center">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No results.
                 </TableCell>
               </TableRow>
@@ -348,27 +452,15 @@ export function ViewUsers() {
         </Table>
       </div>
 
-      {/* Pagination Controls */}
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
         <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
+          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
             Previous
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
+          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
             Next
           </Button>
         </div>

@@ -40,6 +40,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/', venueRoutes);
 app.use('/', eventTypeRoutes);
+app.use('/', userRoutes);
  
 app.get('/roles', async (req, res) => {
   try {
