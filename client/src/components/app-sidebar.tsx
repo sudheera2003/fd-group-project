@@ -72,6 +72,17 @@ const navMain = [
   },
 ];
 
+const navSecondary = [
+  {
+    title: "Venues",
+    url: "/venues",
+  },
+  {
+    title: "Event Types",
+    url: "/event-types",
+  },
+];
+
 const documents = [
   {
     name: "Add User",
@@ -84,17 +95,6 @@ const documents = [
   {
     name: "View All Users",
     url: "/viewUsers",
-  },
-];
-
-const eventFormEdit = [
-  {
-    title: "Event Types",
-    url: "#",
-  },
-  {
-    title: "Venues",
-    url: "#",
   },
 ];
 
@@ -220,38 +220,6 @@ function NavMain({
   );
 }
 
-// event form edit section
-function EditEventFrom({
-  items,
-  ...props
-}: {
-  items: {
-    title: string;
-    url: string;
-  }[];
-} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
-  return (
-    <SidebarGroup {...props}>
-      <SidebarGroupContent>
-        <SidebarGroupLabel>Event Form Management</SidebarGroupLabel>
-        <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <Link to={item.url}>
-                  <SettingsIcon />
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
-}
-
-
 function NavDocuments({
   items,
 }: {
@@ -288,6 +256,36 @@ function NavDocuments({
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
+function NavSecondary({
+  items,
+  ...props
+}: {
+  items: {
+    title: string;
+    url: string;
+  }[];
+} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+  return (
+    <SidebarGroup {...props}>
+      <SidebarGroupLabel>Event Form Settings</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton asChild>
+                <Link to={item.url}>
+                  <SettingsIcon />
+                  <span>{item.title}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
     </SidebarGroup>
   );
 }
