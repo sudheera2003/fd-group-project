@@ -42,6 +42,7 @@ import {
 
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import AddUser from "./content/register";
+import NewEvent from "./content/new-event";
 
 // --- Data Arrays ---
 const navMain = [
@@ -127,7 +128,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     { title: "Team Chat", url: "/team", icon: UserCircleIcon },
   ];
 
-  let currentMenu = memberMenu; 
+  let currentMenu = memberMenu;
   if (authUser?.role === "admin") {
     currentMenu = adminMenu;
   } else if (authUser?.role === "organizer") {
@@ -160,7 +161,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={currentMenu} currentPath={location.pathname} />
-        {authUser?.role === "admin" &&<NavDocuments items={documents} />}
+        {authUser?.role === "admin" && <NavDocuments items={documents} />}
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
@@ -183,19 +184,31 @@ function NavMain({
   }[];
   currentPath: string;
 }) {
+  const [isEventDialogOpen, setIsEventDialogOpen] = React.useState(false);
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Event Management</SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
-            <SidebarMenuButton
-              tooltip="Quick Create"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
+            <Dialog
+              open={isEventDialogOpen}
+              onOpenChange={setIsEventDialogOpen}
             >
-              <PlusCircleIcon />
-              <span>New Event</span>
-            </SidebarMenuButton>
+              <DialogTrigger asChild>
+                <SidebarMenuButton
+                  tooltip="Quick Create"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
+                >
+                  <PlusCircleIcon />
+                  <span>New Event</span>
+                </SidebarMenuButton>
+              </DialogTrigger>
+              <NewEvent
+                isOpen={isEventDialogOpen}
+                setOpen={setIsEventDialogOpen}
+              />
+            </Dialog>
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
@@ -204,7 +217,6 @@ function NavMain({
               <SidebarMenuButton
                 tooltip={item.title}
                 asChild
-                // Check if current path starts with the item url for active state
                 isActive={currentPath === item.url}
               >
                 <Link to={item.url}>
