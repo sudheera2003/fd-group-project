@@ -72,7 +72,7 @@ export default function EventTypesPage() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch("http://localhost:5000/event-types");
+      const res = await fetch("http://localhost:5000/api/event-types");
       if (res.ok) setData(await res.json());
     } catch (e) {
       toast.error("Failed to load types");
@@ -108,14 +108,17 @@ export default function EventTypesPage() {
       let res;
       if (editingId) {
         // UPDATE MODE
-        res = await fetch(`http://localhost:5000/event-types/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        res = await fetch(
+          `http://localhost:5000/api/event-types/${editingId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
       } else {
         // CREATE MODE
-        res = await fetch("http://localhost:5000/event-types", {
+        res = await fetch("http://localhost:5000/api/event-types", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -139,9 +142,12 @@ export default function EventTypesPage() {
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      const res = await fetch(`http://localhost:5000/event-types/${deleteId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `http://localhost:5000/api/event-types/${deleteId}`,
+        {
+          method: "DELETE",
+        }
+      );
       if (res.ok) {
         toast.success("Event Type deleted");
         fetchData();

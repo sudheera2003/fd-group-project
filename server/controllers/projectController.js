@@ -1,4 +1,6 @@
 const Project = require('../models/Project');
+const Event = require('../models/Event'); 
+const Task = require('../models/Task');
 
 // Get all projects
 const getProjects = async (req, res) => {
@@ -37,8 +39,20 @@ const createProject = async (req, res) => {
 // Delete project
 const deleteProject = async (req, res) => {
   try {
-    await Project.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: "Project deleted" });
+    const projectId = req.params.id;
+    const projectEvents = await Event.find({ projectId: projectId });
+    const eventIds = projectEvents.map(event => event._id);
+    if (eventIds.length > 0) {
+      await Task.deleteMany({ eventId: { $in: eventIds } });
+    }
+    await Event.deleteMany({ projectId: projectId });
+    const deletedProject = await Project.findByIdAndDelete(projectId);
+
+    if (!deletedProject) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    res.json({ message: "Project and all associated data deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

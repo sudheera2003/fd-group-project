@@ -74,7 +74,7 @@ export default function VenuesPage() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch("http://localhost:5000/venues");
+      const res = await fetch("http://localhost:5000/api/venues");
       if (res.ok) setData(await res.json());
     } catch (e) {
       toast.error("Failed to load venues");
@@ -116,14 +116,14 @@ export default function VenuesPage() {
       let res;
       if (editingId) {
         // UPDATE MODE
-        res = await fetch(`http://localhost:5000/venues/${editingId}`, {
+        res = await fetch(`http://localhost:5000/api/venues/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       } else {
         // CREATE MODE
-        res = await fetch("http://localhost:5000/venues", {
+        res = await fetch("http://localhost:5000/api/venues", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -145,7 +145,7 @@ export default function VenuesPage() {
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      const res = await fetch(`http://localhost:5000/venues/${deleteId}`, {
+      const res = await fetch(`http://localhost:5000/api/venues/${deleteId}`, {
         method: "DELETE",
       });
       if (res.ok) {

@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import api from "@/lib/api"; // Ensure you import your API helper
 
 import {
   DialogContent,
@@ -32,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+// --- Zod Schema ---
 const formSchema = z.object({
   eventName: z.string().min(2, "Event name is required"),
   date: z.string().min(1, "Date is required"),
@@ -68,9 +70,16 @@ type FormValues = z.infer<typeof formSchema>;
 interface NewEventProps {
   setOpen: (open: boolean) => void;
   isOpen: boolean;
+  onEventCreated?: () => void; // Callback to refresh parent list
+  projectId?: string; // If these events belong to a specific project
 }
 
-export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
+export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }: NewEventProps) {
+  // --- State for Dynamic Data ---
+  const [venues, setVenues] = React.useState<any[]>([]);
+  const [eventTypes, setEventTypes] = React.useState<any[]>([]);
+  const [loadingData, setLoadingData] = React.useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -84,11 +93,35 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
     },
   });
 
+  // --- 1. Fetch Data on Open ---
   React.useEffect(() => {
-    if (!isOpen) form.reset();
+    if (isOpen) {
+      const fetchData = async () => {
+        setLoadingData(true);
+        try {
+          const [venueRes, typeRes] = await Promise.all([
+             api.get("/venues"),     
+             api.get("/event-types") 
+          ]);
+
+          setVenues(venueRes.data);
+          setEventTypes(typeRes.data);
+        } catch (error) {
+          console.error("Failed to fetch form data", error);
+        } finally {
+          setLoadingData(false);
+        }
+      };
+
+      fetchData();
+    } else {
+        form.reset();
+    }
   }, [isOpen, form]);
 
-  function onSubmit(values: FormValues) {
+  // --- 2. Handle Submission ---
+  async function onSubmit(values: FormValues) {
+    // Duration formatting logic
     const parts = values.duration.split(".");
     let formattedDuration = values.duration;
 
@@ -105,37 +138,36 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
     const minutes = parseInt(formattedParts[1] || "0");
     const totalMinutes = hours * 60 + minutes;
 
-    const formData = {
-      ...values,
-      duration: formattedDuration, // Save formatted version back to form values
-      durationMinutes: totalMinutes,
-      durationDisplay: formattedDuration,
-    };
+    try {
+        // Send to Backend
+        await api.post("/events", {
+            name: values.eventName,
+            date: new Date(`${values.date}T${values.startTime}`), 
+            venue: values.venue, 
+            eventType: values.eventType, 
+            budget: values.budget,
+            durationMinutes: totalMinutes,
+            projectId: projectId 
+        });
 
-    console.log("Form Values:", formData);
-    toast.success("Event created successfully! (UI Only)");
-    setOpen(false);
+        toast.success("Event created successfully!");
+        setOpen(false);
+        if (onEventCreated) onEventCreated(); 
+    } catch (error) {
+        toast.error("Failed to create event");
+    }
   }
 
+  // --- Helpers ---
   const formatDurationDisplay = (value: string) => {
     if (!value) return "";
-
     const parts = value.split(".");
-
     if (parts.length === 2) {
       const minutesPart = parts[1];
-
-      if (minutesPart.length > 2) {
-        return parts[0] + "." + minutesPart.slice(0, 2);
-      }
-
-      if (parseInt(minutesPart) > 59) {
-        return parts[0] + ".59";
-      }
-
+      if (minutesPart.length > 2) return parts[0] + "." + minutesPart.slice(0, 2);
+      if (parseInt(minutesPart) > 59) return parts[0] + ".59";
       return value;
     }
-
     return value;
   };
 
@@ -144,20 +176,12 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
     field: any
   ) => {
     let value = e.target.value.replace(/[^0-9.]/g, "");
-
     const parts = value.split(".");
-    if (parts.length > 2) {
-      return;
-    }
-
-    if (parts.length === 2 && parts[1].length > 2) {
-      return;
-    }
-
+    if (parts.length > 2) return;
+    if (parts.length === 2 && parts[1].length > 2) return;
     if (parts[0].length > 1 && parts[0].startsWith("0")) {
       value = parseInt(parts[0]).toString() + (parts[1] ? "." + parts[1] : "");
     }
-
     field.onChange(value);
   };
 
@@ -175,6 +199,7 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid grid-cols-1 gap-4 sm:grid-cols-3"
         >
+          {/* Event Name */}
           <FormField
             control={form.control}
             name="eventName"
@@ -189,6 +214,7 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
             )}
           />
 
+          {/* Date */}
           <FormField
             control={form.control}
             name="date"
@@ -207,7 +233,7 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
                       type="date"
                       {...field}
                       min={minDate}
-                      className="date-picker-white-icon bg-black text-white placeholder-white"
+                      className="date-picker-white-icon bg-secondary/50"
                     />
                   </FormControl>
                   <FormMessage />
@@ -216,6 +242,7 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
             }}
           />
 
+          {/* Time */}
           <FormField
             control={form.control}
             name="startTime"
@@ -226,7 +253,7 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
                   <Input
                     type="time"
                     {...field}
-                    className="time-picker-white-icon bg-black text-white placeholder-white"
+                    className="time-picker-white-icon bg-secondary/50"
                   />
                 </FormControl>
                 <FormMessage />
@@ -234,6 +261,7 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
             )}
           />
 
+          {/* Duration */}
           <FormField
             control={form.control}
             name="duration"
@@ -265,6 +293,7 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
             )}
           />
 
+          {/* --- Dynamic Event Type --- */}
           <FormField
             control={form.control}
             name="eventType"
@@ -274,13 +303,19 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select type" />
+                      <SelectValue placeholder={loadingData ? "Loading..." : "Select type"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="conference">Conference</SelectItem>
-                    <SelectItem value="workshop">Workshop</SelectItem>
-                    <SelectItem value="wedding">Wedding</SelectItem>
+                    {eventTypes.length > 0 ? (
+                        eventTypes.map((type: any) => (
+                            <SelectItem key={type._id || type.id} value={type._id || type.name}>
+                                {type.name}
+                            </SelectItem>
+                        ))
+                    ) : (
+                        <SelectItem value="none" disabled>No types available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -288,6 +323,7 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
             )}
           />
 
+          {/* --- Dynamic Venue --- */}
           <FormField
             control={form.control}
             name="venue"
@@ -297,15 +333,19 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select venue" />
+                      <SelectValue placeholder={loadingData ? "Loading..." : "Select venue"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="grand-hall">Grand Hall</SelectItem>
-                    <SelectItem value="meeting-room-a">
-                      Meeting Room A
-                    </SelectItem>
-                    <SelectItem value="outdoor-plaza">Outdoor Plaza</SelectItem>
+                    {venues.length > 0 ? (
+                        venues.map((venue: any) => (
+                            <SelectItem key={venue._id || venue.id} value={venue._id || venue.name}>
+                                {venue.name}
+                            </SelectItem>
+                        ))
+                    ) : (
+                        <SelectItem value="none" disabled>No venues available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -328,11 +368,6 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
                       const value = e.target.value;
                       field.onChange(value === "" ? 0 : parseFloat(value) || 0);
                     }}
-                    onBlur={() => {
-                      if (isNaN(field.value)) {
-                        field.onChange(0);
-                      }
-                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -346,7 +381,9 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit">Create Event</Button>
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Creating..." : "Create Event"}
+            </Button>
           </DialogFooter>
         </form>
       </Form>
@@ -354,7 +391,7 @@ export default function NewEvent({ setOpen, isOpen }: NewEventProps) {
         .date-picker-white-icon::-webkit-calendar-picker-indicator,
         .time-picker-white-icon::-webkit-calendar-picker-indicator {
           filter: invert(1);
-          opacity: 1;
+          opacity: 0.6;
           cursor: pointer;
         }
       `}</style>

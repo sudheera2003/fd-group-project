@@ -3,38 +3,36 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Calendar, MapPin, Plus, ArrowLeft } from "lucide-react";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar, MapPin, Plus, ArrowLeft, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import NewEvent from "../new-event-dialog"; // Ensure path is correct
 
 export default function ProjectDashboard() {
   const { id } = useParams(); // Get Project ID from URL
   const navigate = useNavigate();
 
-  const [selectedEvent, setSelectedEvent] = useState<any>(null); // Stores the full event object
   const [project, setProject] = useState<any>(null);
   const [events, setEvents] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Form State
-  const [newEvent, setNewEvent] = useState({ name: "", date: "", venue: "" });
+  // 1. Define fetch function so it can be reused by the child component
+  const fetchEvents = async () => {
+    try {
+      const eventRes = await api.get(`/events/${id}`);
+      setEvents(eventRes.data);
+    } catch (error) {
+      console.error("Failed to load events");
+    }
+  };
 
-  // 1. Fetch Data on Load
+  // 2. Initial Data Load
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchProjectData = async () => {
       try {
-        // Fetch Events
-        const eventRes = await api.get(`/events/${id}`);
-        setEvents(eventRes.data);
-        // Fetch Project Info
+        await fetchEvents(); // Load events
+
+        // Load Project Info
         const projectRes = await api.get(`/projects/${id}`);
         setProject(projectRes.data);
       } catch (error) {
@@ -42,24 +40,19 @@ export default function ProjectDashboard() {
         toast.error("Failed to load project info");
       }
     };
-    fetchData();
+    if (id) fetchProjectData();
   }, [id]);
 
-  // 2. Handle Create Event
-  const handleCreateEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm("Are you sure? This will delete the event and ALL its tasks."))
+      return;
+
     try {
-      await api.post("/events", { ...newEvent, projectId: id });
-      toast.success("Event created successfully!");
-
-      // Refresh list
-      const res = await api.get(`/events/${id}`);
-      setEvents(res.data);
-
-      setIsDialogOpen(false);
-      setNewEvent({ name: "", date: "", venue: "" });
+      await api.delete(`/events/${eventId}`);
+      toast.success("Event deleted");
+      fetchEvents();
     } catch (error) {
-      toast.error("Failed to create event");
+      toast.error("Failed to delete event");
     }
   };
 
@@ -90,48 +83,13 @@ export default function ProjectDashboard() {
               <Plus className="mr-2 h-4 w-4" /> Add Event
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New Event</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateEvent} className="space-y-4 mt-4">
-              <div className="grid gap-2">
-                <Label>Event Name</Label>
-                <Input
-                  required
-                  value={newEvent.name}
-                  onChange={(e) =>
-                    setNewEvent({ ...newEvent, name: e.target.value })
-                  }
-                  placeholder="e.g. Opening Ceremony"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Date</Label>
-                <Input
-                  type="datetime-local"
-                  required
-                  value={newEvent.date}
-                  onChange={(e) =>
-                    setNewEvent({ ...newEvent, date: e.target.value })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Venue</Label>
-                <Input
-                  value={newEvent.venue}
-                  onChange={(e) =>
-                    setNewEvent({ ...newEvent, venue: e.target.value })
-                  }
-                  placeholder="e.g. Grand Hall"
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                Create Event
-              </Button>
-            </form>
-          </DialogContent>
+
+          <NewEvent
+            isOpen={isDialogOpen}
+            setOpen={setIsDialogOpen}
+            onEventCreated={fetchEvents}
+            projectId={id}
+          />
         </Dialog>
       </div>
 
@@ -140,10 +98,21 @@ export default function ProjectDashboard() {
         {events.map((event: any) => (
           <Card
             key={event._id}
-            className="hover:border-primary transition-colors cursor-pointer"
+            className="hover:border-primary transition-colors relative group"
           >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 hover:bg-red-50"
+              onClick={(e) => {
+                e.stopPropagation(); 
+                handleDeleteEvent(event._id);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">{event.name}</CardTitle>
+              <CardTitle className="text-lg pr-8">{event.name}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-2 text-sm text-muted-foreground">
@@ -157,19 +126,20 @@ export default function ProjectDashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  {event.venue || "TBD"}
+                  {/* Handle dynamic venue objects if your API returns objects instead of strings now */}
+                  {typeof event.venue === "object"
+                    ? event.venue.name
+                    : event.venue || "TBD"}
                 </div>
               </div>
               <Button
                 variant="outline"
                 className="w-full mt-4 text-xs h-8"
                 onClick={() => {
-                  // Navigate to the new page
-                  // We pass eventName and teamId in 'state' so we don't have to re-fetch them immediately
                   navigate(`/organizer/events/${event._id}/tasks`, {
                     state: {
                       eventName: event.name,
-                      teamId: project.team.id,
+                      teamId: project?.team?.id, // Added optional chaining safety
                     },
                   });
                 }}

@@ -38,8 +38,8 @@ app.use('/api/events', eventRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
-app.use('/', venueRoutes);
-app.use('/', eventTypeRoutes);
+app.use('/api/venues', venueRoutes);         
+app.use('/api/event-types', eventTypeRoutes);
 app.use('/', userRoutes);
  
 app.get('/roles', async (req, res) => {

@@ -42,7 +42,7 @@ import {
 
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import AddUser from "./content/register";
-import NewEvent from "./content/new-event";
+import NewEvent from "./content/new-event-dialog";
 
 // --- Data Arrays ---
 const navMain = [
@@ -161,8 +161,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={currentMenu} currentPath={location.pathname} />
-        {authUser?.role === "admin" && <NavDocuments items={documents} />}
-        <NavSecondary items={navSecondary} className="mt-auto" />
+        {authUser?.role === "admin" && (
+          <>
+            <NavDocuments items={documents} />
+            <NavSecondary items={navSecondary} className="mt-auto" />
+          </>
+        )}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />
@@ -191,7 +195,7 @@ function NavMain({
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
-            <Dialog
+            {/* <Dialog
               open={isEventDialogOpen}
               onOpenChange={setIsEventDialogOpen}
             >
@@ -208,7 +212,7 @@ function NavMain({
                 isOpen={isEventDialogOpen}
                 setOpen={setIsEventDialogOpen}
               />
-            </Dialog>
+            </Dialog> */}
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
