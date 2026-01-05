@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import api from "@/lib/api"; // Ensure you import your API helper
+import api from "@/lib/api"; 
+import { Check } from "lucide-react"; // Import Check icon for selection
 
 import {
   DialogContent,
@@ -32,6 +33,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+// --- 1. Define Color Options ---
+const COLOR_OPTIONS = [
+  { name: "blue", hex: "#3b82f6" },
+  { name: "green", hex: "#22c55e" },
+  { name: "red", hex: "#ef4444" },
+  { name: "purple", hex: "#a855f7" },
+  { name: "orange", hex: "#f97316" },
+  { name: "pink", hex: "#ec4899" },
+  { name: "yellow", hex: "#eab308" },
+];
 
 // --- Zod Schema ---
 const formSchema = z.object({
@@ -63,6 +75,7 @@ const formSchema = z.object({
   eventType: z.string().min(1, "Please select an event type"),
   venue: z.string().min(1, "Please select a venue"),
   budget: z.number().min(0, "Budget must be positive"),
+  color: z.string().min(1, "Please select a color"), // --- 2. Add Color Field ---
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -70,12 +83,11 @@ type FormValues = z.infer<typeof formSchema>;
 interface NewEventProps {
   setOpen: (open: boolean) => void;
   isOpen: boolean;
-  onEventCreated?: () => void; // Callback to refresh parent list
-  projectId?: string; // If these events belong to a specific project
+  onEventCreated?: () => void;
+  projectId?: string;
 }
 
 export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }: NewEventProps) {
-  // --- State for Dynamic Data ---
   const [venues, setVenues] = React.useState<any[]>([]);
   const [eventTypes, setEventTypes] = React.useState<any[]>([]);
   const [loadingData, setLoadingData] = React.useState(false);
@@ -90,10 +102,10 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
       eventType: "",
       venue: "",
       budget: 0,
+      color: "blue", // Default to Blue
     },
   });
 
-  // --- 1. Fetch Data on Open ---
   React.useEffect(() => {
     if (isOpen) {
       const fetchData = async () => {
@@ -119,7 +131,6 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
     }
   }, [isOpen, form]);
 
-  // --- 2. Handle Submission ---
   async function onSubmit(values: FormValues) {
     // Duration formatting logic
     const parts = values.duration.split(".");
@@ -139,7 +150,6 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
     const totalMinutes = hours * 60 + minutes;
 
     try {
-        // Send to Backend
         await api.post("/events", {
             name: values.eventName,
             date: new Date(`${values.date}T${values.startTime}`), 
@@ -147,6 +157,7 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
             eventType: values.eventType, 
             budget: values.budget,
             durationMinutes: totalMinutes,
+            color: values.color, // --- 3. Send Color to API ---
             projectId: projectId 
         });
 
@@ -293,7 +304,7 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
             )}
           />
 
-          {/* --- Dynamic Event Type --- */}
+          {/* Event Type */}
           <FormField
             control={form.control}
             name="eventType"
@@ -323,7 +334,7 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
             )}
           />
 
-          {/* --- Dynamic Venue --- */}
+          {/* Venue */}
           <FormField
             control={form.control}
             name="venue"
@@ -353,6 +364,7 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
             )}
           />
 
+          {/* Budget */}
           <FormField
             control={form.control}
             name="budget"
@@ -369,6 +381,38 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
                       field.onChange(value === "" ? 0 : parseFloat(value) || 0);
                     }}
                   />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* --- 4. Color Picker Section --- */}
+          <FormField
+            control={form.control}
+            name="color"
+            render={({ field }) => (
+              <FormItem className="sm:col-span-3">
+                <FormLabel>Event Color</FormLabel>
+                <FormControl>
+                  <div className="flex items-center gap-4 pt-1">
+                    {COLOR_OPTIONS.map((option) => (
+                      <div
+                        key={option.name}
+                        onClick={() => field.onChange(option.name)} 
+                        className={`cursor-pointer rounded-full w-8 h-8 flex items-center justify-center transition-all shadow-sm hover:scale-110 ${
+                          field.value === option.name
+                            ? "ring-2 ring-offset-2 ring-primary ring-offset-background scale-110"
+                            : ""
+                        }`}
+                        style={{ backgroundColor: option.hex }} // Display the Hex
+                      >
+                        {field.value === option.name && (
+                          <Check className="w-4 h-4 text-white drop-shadow-md" strokeWidth={3} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

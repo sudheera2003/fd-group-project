@@ -24,7 +24,7 @@ export function DashboardContent() {
               hour: "2-digit",
               minute: "2-digit",
             }),
-            color: "blue",
+            color: event.color || "#3b82f6",
           };
         });
 

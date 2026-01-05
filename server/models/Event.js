@@ -10,6 +10,12 @@ const EventSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   durationMinutes: { type: Number, required: true }, 
   budget: { type: Number, default: 0 },
+  
+  color: { 
+    type: String, 
+    default: "#3b82f6" // Default
+  },
+
   venue: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Venue', 

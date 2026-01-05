@@ -43,7 +43,8 @@ const createEvent = async (req, res) => {
     venue, 
     durationMinutes, 
     budget, 
-    eventType 
+    eventType, 
+    color
   } = req.body;
 
   try {
@@ -54,7 +55,8 @@ const createEvent = async (req, res) => {
       venue, 
       durationMinutes, 
       budget, 
-      eventType 
+      eventType, 
+      color
     });
     
     await newEvent.save();
