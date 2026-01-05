@@ -15,6 +15,8 @@ const getProjectEvents = async (req, res) => {
   }
 };
 
+
+
 // Delete an event and its associated tasks
 const deleteEvent = async (req, res) => {
   try {
@@ -63,5 +65,24 @@ const createEvent = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+// Get ALL events (for calendar view)
+const getAllEvents = async (req, res) => {
+  try {
+    const events = await Event.find()
+      .populate('venue', 'name')
+      .populate('eventType', 'name')
+      .sort({ date: 1 });
 
-module.exports = { getProjectEvents, createEvent, deleteEvent };
+    res.status(200).json(events);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+module.exports = { 
+  getProjectEvents, 
+  getAllEvents,
+  createEvent, 
+  deleteEvent 
+};
