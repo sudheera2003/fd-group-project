@@ -128,7 +128,7 @@ const Calendar = React.forwardRef<HTMLDivElement, CalendarProps>(
                 {monthNames[month]} {year}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Jan 1, 2025 - Jan 31, 2025
+                Events Overview
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -208,23 +208,26 @@ const Calendar = React.forwardRef<HTMLDivElement, CalendarProps>(
                         {day}
                       </div>
                       <div className="space-y-1">
-                        {getEventsForDate(day).map((event) => (
-                          <div
-                            key={event.id}
-                            className={cn(
-                              "text-xs p-1 rounded truncate font-medium leading-tight",
-                              getEventColor(event.color)
-                            )}
-                            title={`${event.title} - ${event.time}`}
-                          >
-                            <div className="truncate">{event.title}</div>
-                            <div className="text-xs opacity-75">
-                              {event.time}
+                        {getEventsForDate(day)
+                          .slice(0, 2)
+                          .map((event) => (
+                            <div
+                              key={event.id}
+                              className={cn(
+                                "text-xs p-1 rounded truncate font-medium leading-tight",
+                                getEventColor(event.color)
+                              )}
+                              title={`${event.title} - ${event.time}`}
+                            >
+                              <div className="truncate">{event.title}</div>
+                              <div className="text-xs opacity-75">
+                                {event.time}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+
                         {getEventsForDate(day).length > 2 && (
-                          <div className="text-xs text-gray-500 px-1">
+                          <div className="text-xs text-gray-500 px-1 font-medium mt-1">
                             +{getEventsForDate(day).length - 2} more...
                           </div>
                         )}
