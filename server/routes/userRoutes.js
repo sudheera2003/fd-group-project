@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router(); // 1. Use Router, not app
 const Role = require('../models/Role'); // Make sure to import Role
 const User = require('../models/User'); // Make sure to import User
-const { getUsers, updateUserRole, deleteUser } = require('../controllers/userController');
+const { getUsers, updateUserRole, deleteUser, updateUserProfile } = require('../controllers/userController');
 
 // Path is just '/search' because index.js adds '/api/users'
 router.get('/search', async (req, res) => { // 2. Shortened path
@@ -46,5 +46,6 @@ router.get('/search', async (req, res) => { // 2. Shortened path
 router.get('/users', getUsers);
 router.put('/users/:id/role', updateUserRole);
 router.delete('/users/:id', deleteUser);
+router.put('/users/:id', updateUserProfile);
 
 module.exports = router; // 3. Export the router

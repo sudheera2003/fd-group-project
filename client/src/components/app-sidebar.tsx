@@ -308,6 +308,10 @@ function NavUser({
     logout();
     navigate("/login");
   };
+
+  const editProfile = () => {
+    navigate("/profile");
+  };
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -356,17 +360,9 @@ function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={editProfile} className="cursor-pointer">
                 <UserCircleIcon />
                 Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon />
-                Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
