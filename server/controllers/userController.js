@@ -52,5 +52,23 @@ const deleteUser = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+// Update User Profile (Self)
+const updateUserProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Only allow updating name and email
+    const { username, email } = req.body; 
 
-module.exports = { getUsers, updateUserRole, deleteUser };
+    const updatedUser = await User.findByIdAndUpdate(
+      id, 
+      { username, email }, 
+      { new: true }
+    ).populate('role', 'name'); // Ensure we return the populated role
+
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { getUsers, updateUserRole, deleteUser, updateUserProfile };

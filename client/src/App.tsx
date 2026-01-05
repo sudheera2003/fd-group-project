@@ -23,6 +23,7 @@ import ProtectedRoute from "./components/protected-route";
 import ApprovalsPage from "./components/content/organizer/approvals-page";
 import VenuesPage from "./components/content/admin/venues-page";
 import EventTypesPage from "./components/content/admin/event-types-page";
+import ProfilePage from "./components/content/profile-page";
 
 function App() {
   const { user, isLoading } = useAuth();
@@ -301,6 +302,7 @@ function App() {
           <Route element={<DashboardLayout />}>
             <Route element={<ProtectedRoute allowedRoles={['admin', 'organizer', 'member']} />}>
               <Route path="/dashboard" element={<DashboardContent events={events} />} />
+              <Route path="/profile" element={<ProfilePage />} />
             </Route>
             {/* A. ADMIN ROUTES */}
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
