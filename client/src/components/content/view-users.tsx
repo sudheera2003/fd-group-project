@@ -18,10 +18,7 @@ import {
   ArrowUpDown,
   ChevronDown,
   MoreHorizontal,
-  Loader2,
-  ShieldAlert,
-  ShieldCheck
-} from "lucide-react";
+  Loader2} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -151,15 +148,15 @@ export function ViewUsers() {
       const res = await fetch(`http://localhost:5000/users/${deleteId}`, {
         method: "DELETE",
       });
-
+      const data = await res.json();
       if (res.ok) {
         toast.success("User deleted successfully");
         fetchData(); // Refresh list
       } else {
-        toast.error("Failed to delete user");
+        toast.error(data.message || "Failed to delete user");
       }
     } catch (error) {
-      toast.error("Server error");
+      toast.error("Server connection error");
     } finally {
       setDeleteId(null); // Close dialog
     }
@@ -234,7 +231,7 @@ export function ViewUsers() {
           </div>
         );
       },
-      filterFn: (row, id, value) => {
+      filterFn: (row, _id, value) => {
         const roleName = row.original.role?.name;
         return value === "all" ? true : roleName === value;
       },

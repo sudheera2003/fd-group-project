@@ -4,29 +4,16 @@ import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ArrowLeft, 
-  Plus, 
-  Trash2, 
-} from "lucide-react";
+import { ArrowLeft, Plus, Trash2, UserPlus, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 
 export default function TaskManagerPage() {
@@ -39,18 +26,19 @@ export default function TaskManagerPage() {
 
   const [tasks, setTasks] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
+  
+  // Create Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  // Form State
   const [newTask, setNewTask] = useState({ description: "", assignedTo: "", priority: "Medium" });
 
+  // Reassign Dialog State
+  const [reassignTask, setReassignTask] = useState<any>(null); // The task object being fixed
+  const [newAssignee, setNewAssignee] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
-    if (eventId && teamId) {
-      fetchData();
-    } else {
-        console.warn("Missing teamId or eventId");
-    }
+    if (eventId && teamId) fetchData();
   }, [eventId, teamId]);
 
   const fetchData = async () => {
@@ -61,17 +49,12 @@ export default function TaskManagerPage() {
       ]);
       setTasks(taskRes.data);
       setMembers(memberRes.data);
-    } catch (error) {
-      toast.error("Failed to load task data");
-    }
+    } catch (error) { toast.error("Failed to load data"); }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTask.assignedTo) {
-      toast.error("Please select a member");
-      return;
-    }
+    if (!newTask.assignedTo) return toast.error("Please select a member");
     setLoading(true);
     try {
       await api.post("/tasks", { eventId, ...newTask });
@@ -79,14 +62,12 @@ export default function TaskManagerPage() {
       setIsDialogOpen(false);
       setNewTask({ description: "", assignedTo: "", priority: "Medium" });
       fetchData(); 
-    } catch (error) {
-      toast.error("Failed to create task");
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { toast.error("Failed to create task"); } 
+    finally { setLoading(false); }
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Delete this task?")) return;
     try {
       await api.delete(`/tasks/${id}`);
       setTasks(tasks.filter(t => t._id !== id));
@@ -94,19 +75,42 @@ export default function TaskManagerPage() {
     } catch (e) { toast.error("Could not delete task"); }
   };
 
-  const getPriorityColor = (p: string) => {
-    switch(p) {
-      case 'High': return "bg-red-100 text-red-700 hover:bg-red-100 border-red-200";
-      case 'Medium': return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100 border-yellow-200";
-      case 'Low': return "bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200";
-      default: return "bg-gray-100";
+  // 👇 NEW FUNCTION: Handle Reassignment
+  const handleReassign = async () => {
+    if (!reassignTask || !newAssignee) return toast.error("Select a member");
+    
+    try {
+      await api.patch(`/tasks/${reassignTask._id}/assign`, { memberId: newAssignee });
+      toast.success("Task reassigned successfully");
+      
+      // Close dialog and reset state
+      setReassignTask(null);
+      setNewAssignee("");
+      
+      // Refresh list to show new avatar
+      fetchData(); 
+    } catch (error) {
+      toast.error("Failed to reassign task");
     }
   };
 
+  const getPriorityColor = (p: string) => {
+    switch(p) {
+      case 'High': return "bg-red-100 text-red-700 border-red-200";
+      case 'Medium': return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      default: return "bg-blue-100 text-blue-700 border-blue-200";
+    }
+  };
+
+  const getStatusColor = (s: string) => {
+    if (s === 'Done') return "bg-green-100 text-green-700";
+    if (s === 'In Review') return "bg-purple-100 text-purple-700";
+    return "bg-secondary text-secondary-foreground";
+  };
+
   return (
-    <div className="space-y-6"> 
-      
-      {/* --- Header --- */}
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -120,73 +124,73 @@ export default function TaskManagerPage() {
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> Assign Task
-            </Button>
+            <Button><Plus className="mr-2 h-4 w-4" /> Assign New Task</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Assign Task</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Assign Task</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label>Description</Label>
-                <Input 
-                  required 
-                  placeholder="What needs to be done?" 
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                />
+                <Input required placeholder="Task details..." value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} />
               </div>
-              
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Assignee</Label>
-                  <select 
-                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                     value={newTask.assignedTo}
-                     onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
-                     required
-                  >
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={newTask.assignedTo} onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})} required>
                     <option value="" disabled>Select Member...</option>
-                    {members.map(m => (
-                        <option key={m._id} value={m._id}>{m.username}</option>
-                    ))}
+                    {members.map(m => <option key={m._id} value={m._id}>{m.username}</option>)}
                   </select>
                 </div>
-
                 <div className="space-y-2">
                   <Label>Priority</Label>
-                  <select 
-                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                     value={newTask.priority}
-                     onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
-                  >
-                    <option>Low</option>
-                    <option>Medium</option>
-                    <option>High</option>
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={newTask.priority} onChange={(e) => setNewTask({...newTask, priority: e.target.value})}>
+                    <option>Low</option><option>Medium</option><option>High</option>
                   </select>
                 </div>
               </div>
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Assigning..." : "Assign Task"}
-              </Button>
+              <Button type="submit" className="w-full" disabled={loading}>{loading ? "Assigning..." : "Assign Task"}</Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* --- Tasks Table --- */}
+      {/* --- REASSIGN DIALOG (Pop up when 'reassignTask' is set) --- */}
+      <Dialog open={!!reassignTask} onOpenChange={(open) => !open && setReassignTask(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+               <AlertCircle className="h-5 w-5" /> Reassign Task
+            </DialogTitle>
+            <DialogDescription>
+               The previous owner of this task was removed. Please select a new member for: <br/>
+               <span className="font-bold text-foreground block mt-1">"{reassignTask?.description}"</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+             <div className="space-y-2">
+                <Label>Select New Member</Label>
+                <select 
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
+                  value={newAssignee} 
+                  onChange={(e) => setNewAssignee(e.target.value)}
+                >
+                    <option value="" disabled>Choose member...</option>
+                    {members.map(m => <option key={m._id} value={m._id}>{m.username}</option>)}
+                </select>
+             </div>
+             <Button onClick={handleReassign} className="w-full">Confirm Reassignment</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task List */}
       <Card>
-        <CardHeader>
-          <CardTitle>Task List</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Task List</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[400px]">Description</TableHead>
+                <TableHead className="w-[350px]">Description</TableHead>
                 <TableHead>Assigned To</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Status</TableHead>
@@ -195,41 +199,46 @@ export default function TaskManagerPage() {
             </TableHeader>
             <TableBody>
               {tasks.length === 0 ? (
-                <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                        No tasks assigned yet.
-                    </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No tasks assigned yet.</TableCell></TableRow>
               ) : (
                 tasks.map((task) => (
-                    <TableRow key={task._id}>
+                  <TableRow key={task._id}>
                     <TableCell className="font-medium">{task.description}</TableCell>
+                    
+                    {/* 👇 ASSIGNEE LOGIC: Check if assignedTo exists */}
                     <TableCell>
-                        <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${task.assignedTo?.username}`} />
-                            <AvatarFallback>{task.assignedTo?.username?.[0]}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm text-muted-foreground">{task.assignedTo?.username || "Unassigned"}</span>
-                        </div>
+                        {task.assignedTo ? (
+                            <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${task.assignedTo.username}`} />
+                                    <AvatarFallback>{task.assignedTo.username[0]}</AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm text-muted-foreground">{task.assignedTo.username}</span>
+                            </div>
+                        ) : (
+                            <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                className="h-7 text-xs gap-1 shadow-sm animate-pulse"
+                                onClick={() => setReassignTask(task)}
+                            >
+                                <UserPlus className="h-3 w-3" /> Assign Member
+                            </Button>
+                        )}
+                    </TableCell>
+
+                    <TableCell>
+                        <Badge variant="outline" className={getPriorityColor(task.priority)}>{task.priority}</Badge>
                     </TableCell>
                     <TableCell>
-                        <Badge variant="secondary" className={getPriorityColor(task.priority)}>
-                            {task.priority}
-                        </Badge>
-                    </TableCell>
-                    <TableCell>
-                        <div className="flex items-center gap-2">
-                            <div className={`h-2 w-2 rounded-full ${task.status === 'Done' ? 'bg-green-500' : 'bg-orange-400'}`} />
-                            <span className="text-sm">{task.status}</span>
-                        </div>
+                        <Badge variant="secondary" className={getStatusColor(task.status)}>{task.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                         <Button variant="ghost" size="icon" className="hover:text-red-600" onClick={() => handleDelete(task._id)}>
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </TableCell>
-                    </TableRow>
+                  </TableRow>
                 ))
               )}
             </TableBody>
