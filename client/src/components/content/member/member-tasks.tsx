@@ -137,7 +137,7 @@ export default function MemberTasks() {
             <CardContent className="flex-1 flex flex-col gap-4">
               <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md space-y-1">
                 <div className="flex items-center gap-2"><Calendar className="h-3 w-3" /> {new Date(task.eventId?.date).toLocaleDateString()}</div>
-                <div className="flex items-center gap-2"><MapPin className="h-3 w-3" /> {task.eventId?.venue || "TBD"}</div>
+                <div className="flex items-center gap-2"><MapPin className="h-3 w-3" /> {task.eventId?.venue.name || "TBD"}</div>
               </div>
 
               <div className="mt-auto pt-2">

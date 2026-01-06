@@ -56,7 +56,14 @@ const getMemberTasks = async (req, res) => {
     const { userId } = req.params;
     // We populate 'eventId' so the member knows WHICH event the task is for
     const tasks = await Task.find({ assignedTo: userId })
-      .populate('eventId', 'name date venue') 
+      .populate({
+        path: 'eventId',           
+        select: 'name date venue', 
+        populate: {                
+          path: 'venue',
+          select: 'name location'  
+        }
+      })
       .sort({ createdAt: -1 }); // Newest first
     res.status(200).json(tasks);
   } catch (err) {
