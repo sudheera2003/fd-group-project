@@ -75,13 +75,15 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+
   // Table State
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   useEffect(() => {
     fetchTeams();
-  }, [isDialogOpen]);
+  }, []);
 
   const fetchTeams = async () => {
     try {
@@ -91,6 +93,17 @@ export default function TeamsPage() {
     } catch (error) {
       toast.error("Failed to load teams");
     }
+  };
+
+  const handleEdit = (team: Team) => {
+    setSelectedTeam(team);
+    setIsDialogOpen(true);
+  };
+
+  // --- Helper to open Create Modal ---
+  const handleCreate = () => {
+    setSelectedTeam(null); // Clear selected team
+    setIsDialogOpen(true);
   };
 
   // Define Columns (Memoized to access 'user' scope for Owner check)
@@ -189,7 +202,7 @@ export default function TeamsPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => alert("Edit Coming Soon")}>
+                    <DropdownMenuItem onClick={() => handleEdit(team)}>
                       Edit Team
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -240,19 +253,23 @@ export default function TeamsPage() {
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={handleCreate}>
               <Plus className="mr-2 h-4 w-4" /> Create New Team
             </Button>
           </DialogTrigger>
 
           <DialogContent className="sm:max-w-[500px] overflow-y-auto p-8 [&>button]:hidden">
             <DialogHeader className="sr-only">
-              <DialogTitle>Create Team</DialogTitle>
+              <DialogTitle>{selectedTeam ? "Edit Team" : "Create Team"}</DialogTitle>
               <DialogDescription>
-                Fill out the form below to create a new team.
+                {selectedTeam ? "Modify team details below." : "Fill out the form below to create a new team."}
               </DialogDescription>
             </DialogHeader>
-            <CreateTeamForm setOpen={setIsDialogOpen} />
+            <CreateTeamForm 
+                setOpen={setIsDialogOpen} 
+                teamToEdit={selectedTeam} 
+                onSuccess={fetchTeams} 
+            />
           </DialogContent>
         </Dialog>
       </div>

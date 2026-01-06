@@ -3,12 +3,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { X, Search, UserPlus } from "lucide-react";
+import { X, Search, UserPlus, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
-import api from "@/lib/api"; // Assuming you have this set up
+import api from "@/lib/api";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
@@ -21,14 +21,20 @@ const teamSchema = z.object({
   description: z.string().optional(),
 });
 
-export default function CreateTeamForm({ setOpen }: { setOpen?: (open: boolean) => void }) {
+// Added teamToEdit prop
+interface TeamFormProps {
+  setOpen?: (open: boolean) => void;
+  teamToEdit?: any | null; 
+  onSuccess?: () => void; // To refresh table
+}
+
+export default function CreateTeamForm({ setOpen, teamToEdit, onSuccess }: TeamFormProps) {
   const { user } = useAuth();
   
-  // Search State
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserResult[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Selection State
   const [organizer, setOrganizer] = useState<UserResult | null>(null);
   const [members, setMembers] = useState<UserResult[]>([]);
 
@@ -37,12 +43,42 @@ export default function CreateTeamForm({ setOpen }: { setOpen?: (open: boolean) 
     defaultValues: { name: "", description: "" },
   });
 
+  // --- POPULATE FORM IF EDITING ---
+  useEffect(() => {
+    if (teamToEdit) {
+      form.reset({
+        name: teamToEdit.name,
+        description: teamToEdit.description || "",
+      });
+
+      // Map existing organizer
+      if (teamToEdit.organizer) {
+        setOrganizer({
+            _id: teamToEdit.organizer._id,
+            username: teamToEdit.organizer.username,
+            email: teamToEdit.organizer.email,
+            role: "organizer" // Assuming role name
+        });
+      }
+
+      // Map existing members
+      if (teamToEdit.members && Array.isArray(teamToEdit.members)) {
+        const mappedMembers = teamToEdit.members.map((m: any) => ({
+            _id: m._id,
+            username: m.username,
+            email: m.email,
+            role: m.role || "member"
+        }));
+        setMembers(mappedMembers);
+      }
+    }
+  }, [teamToEdit, form]);
+
   // --- Search Logic ---
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (query.length < 2) { setSearchResults([]); return; }
       try {
-        // Assume you have a generic user search endpoint
         const res = await fetch(`http://localhost:5000/api/users/search?query=${query}`);
         const data = await res.json();
         setSearchResults(data);
@@ -53,15 +89,16 @@ export default function CreateTeamForm({ setOpen }: { setOpen?: (open: boolean) 
 
   // --- Add User Logic ---
   const handleAddUser = (selectedUser: UserResult) => {
-    // 1. Check if trying to add organizer
     if (selectedUser.role === 'organizer') {
-      if (organizer) { toast.warning("Only one organizer per team."); return; }
+      if (organizer && organizer._id !== selectedUser._id) { 
+        toast.warning("Only one organizer per team. Remove current one first."); 
+        return; 
+      }
       setOrganizer(selectedUser);
       setQuery(""); setSearchResults([]);
       return;
     }
     
-    // 2. Add normal member
     if (members.some(u => u._id === selectedUser._id)) {
         toast.warning("User already added."); return;
     }
@@ -72,19 +109,38 @@ export default function CreateTeamForm({ setOpen }: { setOpen?: (open: boolean) 
   // --- Submit ---
   async function onSubmit(values: z.infer<typeof teamSchema>) {
     if (!organizer) { toast.error("Please select an Organizer."); return; }
+    // Validation: Organizer Removed check
+    if (teamToEdit && !organizer) {
+        toast.error("You cannot leave a team without an organizer.");
+        return;
+    }
     if (members.length === 0) { toast.error("Please add at least one member."); return; }
 
+    setIsSubmitting(true);
     try {
-      await api.post("http://localhost:5000/api/teams", {
+      const payload = {
         ...values,
         organizerId: organizer._id,
         memberIds: members.map(u => u._id),
         adminId: user?.id
-      });
-      toast.success("Team created successfully!");
+      };
+
+      if (teamToEdit) {
+        // --- EDIT MODE ---
+        await api.put(`http://localhost:5000/api/teams/${teamToEdit._id}`, payload);
+        toast.success("Team updated successfully!");
+      } else {
+        // --- CREATE MODE ---
+        await api.post("http://localhost:5000/api/teams", payload);
+        toast.success("Team created successfully!");
+      }
+
+      onSuccess?.(); // Trigger refresh
       setOpen?.(false);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to create team");
+      toast.error(error.response?.data?.message || "Failed to save team");
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
@@ -106,7 +162,6 @@ export default function CreateTeamForm({ setOpen }: { setOpen?: (open: boolean) 
             </FormItem>
           )} />
 
-        {/* --- Search & Select --- */}
         <div className="space-y-3">
             <FormLabel>Assign Members</FormLabel>
             <div className="relative">
@@ -114,9 +169,8 @@ export default function CreateTeamForm({ setOpen }: { setOpen?: (open: boolean) 
                 <Input placeholder="Search user by email..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-8" />
             </div>
 
-            {/* Results Dropdown */}
             {searchResults.length > 0 && (
-                <div className="border rounded-md max-h-40 overflow-y-auto bg-popover p-1 shadow-md">
+                <div className="border rounded-md max-h-40 overflow-y-auto bg-popover p-1 shadow-md z-50 absolute w-full mt-1">
                     {searchResults.map(u => (
                         <div key={u._id} onClick={() => handleAddUser(u)} className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer rounded-sm">
                             <Avatar className="h-6 w-6"><AvatarFallback>{u.username[0]}</AvatarFallback></Avatar>
@@ -131,7 +185,6 @@ export default function CreateTeamForm({ setOpen }: { setOpen?: (open: boolean) 
             )}
         </div>
 
-        {/* --- Display Selected Organizer --- */}
         {organizer && (
             <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
                 <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2">Selected Organizer</p>
@@ -143,12 +196,11 @@ export default function CreateTeamForm({ setOpen }: { setOpen?: (open: boolean) 
                             <p className="text-xs text-muted-foreground">{organizer.email}</p>
                         </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => setOrganizer(null)} className="h-6 w-6"><X className="h-4 w-4" /></Button>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setOrganizer(null)} className="h-6 w-6"><X className="h-4 w-4" /></Button>
                 </div>
             </div>
         )}
 
-        {/* --- Display Selected Members --- */}
         {members.length > 0 && (
             <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground">Members ({members.length})</p>
@@ -164,7 +216,9 @@ export default function CreateTeamForm({ setOpen }: { setOpen?: (open: boolean) 
             </div>
         )}
 
-        <Button type="submit" className="w-full">Create Team</Button>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="animate-spin" /> : (teamToEdit ? "Update Team" : "Create Team")}
+        </Button>
       </form>
     </Form>
   );

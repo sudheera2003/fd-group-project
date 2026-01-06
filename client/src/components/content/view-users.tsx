@@ -84,15 +84,16 @@ export function ViewUsers() {
   const [data, setData] = React.useState<User[]>([]);
   const [roleOptions, setRoleOptions] = React.useState<RoleOption[]>([]);
   const [loading, setLoading] = React.useState(true);
+
+  //DIALOG STATE
+  const [deleteId, setDeleteId] = React.useState<string | null>(null); // For "Are you sure?"
+  const [alertError, setAlertError] = React.useState<string | null>(null); // For "Cannot delete"
   
   // Table State
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
-
-  // --- DELETE STATE ---
-  const [deleteId, setDeleteId] = React.useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -141,24 +142,29 @@ export function ViewUsers() {
     }
   };
 
-  // --- CONFIRM DELETE FUNCTION ---
+  // --- DELETE LOGIC ---
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
       const res = await fetch(`http://localhost:5000/users/${deleteId}`, {
         method: "DELETE",
       });
-      const data = await res.json();
+      
+      const responseData = await res.json();
+
       if (res.ok) {
+        // Success
         toast.success("User deleted successfully");
-        fetchData(); // Refresh list
+        fetchData();
+        setDeleteId(null); 
       } else {
-        toast.error(data.message || "Failed to delete user");
+        // Error (e.g., 400 Bad Request because user is in a team)
+        setDeleteId(null); // Close confirmation
+        setAlertError(responseData.message || "Failed to delete user"); // Open Error Alert
       }
     } catch (error) {
       toast.error("Server connection error");
-    } finally {
-      setDeleteId(null); // Close dialog
+      setDeleteId(null);
     }
   };
 
@@ -297,8 +303,8 @@ export function ViewUsers() {
               
               <DropdownMenuItem 
                 className="text-red-600 focus:text-red-600"
-                disabled={isSelf} // Prevent deleting self
-                onClick={() => setDeleteId(userRow._id)} // <--- TRIGGER DIALOG
+                disabled={isSelf}
+                onClick={() => setDeleteId(userRow._id)}
               >
                 Delete User
               </DropdownMenuItem>
@@ -338,7 +344,7 @@ export function ViewUsers() {
 
   return (
     <div className="w-full px-16">
-      {/* --- DELETE CONFIRMATION DIALOG --- */}
+      {/* 1. CONFIRMATION DIALOG (Standard Delete) */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -352,6 +358,23 @@ export function ViewUsers() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={confirmDelete}>
               Delete User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 2. ERROR DIALOG (For Team/Organizer Conflict) */}
+      <AlertDialog open={!!alertError} onOpenChange={(open) => !open && setAlertError(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Cannot Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              {alertError}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAlertError(null)}>
+              Okay
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
