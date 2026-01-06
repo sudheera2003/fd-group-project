@@ -45,19 +45,22 @@ const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Assumes your Role model has a field called 'name' (e.g., "organizer")
     const user = await User.findById(id).populate('role', 'name');
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Extract the string name safely (handling cases where role might be missing)
+    // --- NEW CHECK: IS USER ON A TEAM? ---
+    // If teamId is not null, block deletion
+    if (user.teamId) {
+      return res.status(400).json({ 
+        message: "User is currently assigned to a team. Please remove them from the team first." 
+      });
+    }
+
     const userRole = user.role?.name?.toLowerCase(); 
 
-    // --- CHECK 1: ORGANIZER VALIDATION ---
+    // --- CHECK 1: ORGANIZER VALIDATION (Existing logic) ---
     if (userRole === 'organizer') {
-      
-      // 1. Check for Active Projects
-      // Using regex for case-insensitive email matching just to be safe
       const projectCount = await Project.countDocuments({ 
         "team.organizerEmail": { $regex: new RegExp(`^${user.email}$`, "i") }
       });
@@ -67,10 +70,10 @@ const deleteUser = async (req, res) => {
           message: `Cannot delete: This Organizer owns ${projectCount} active project(s). Please delete them first.` 
         });
       }
-
-      // 2. Check for Active Teams
-      const team = await Team.findOne({ organizer: id }); 
       
+      // Note: The 'teamId' check above catches organizers in teams, 
+      // but keeping your specific organizer/team query as a fallback is fine.
+      const team = await Team.findOne({ organizer: id }); 
       if (team) {
         return res.status(400).json({ 
           message: `Cannot delete: This Organizer still manages the team "${team.name}". Please delete the team first.` 
@@ -78,13 +81,10 @@ const deleteUser = async (req, res) => {
       }
     }
 
-    // --- CHECK 2: MEMBER VALIDATION ---
+    // --- CHECK 2: MEMBER CLEANUP (Existing logic) ---
+    // If they passed the teamId check above, they are not "officially" in a team,
+    // but we can run this cleanup just in case there's stale data.
     if (userRole === 'member') {
-      await Team.updateMany(
-        { members: id }, 
-        { $pull: { members: id } }
-      );
-
       await Task.updateMany(
         { assignedTo: id },
         { 
