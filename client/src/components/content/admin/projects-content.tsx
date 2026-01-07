@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { Button } from "@/components/ui/button";
 import { 
   MoreVertical, 
@@ -7,7 +6,8 @@ import {
   Users, 
   Trash2, 
   Eye, 
-  Edit 
+  Edit,
+  Plus 
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -16,6 +16,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Dialog } from "@/components/ui/dialog"; // Import Root Dialog
+import ProjectDialog from "./project-dialog"; // Import your NEW reusable dialog
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -27,9 +29,13 @@ interface Project {
   description: string;
   deadline: string;
   status: string;
+  // Updated team interface to include _id for the Edit Form
   team?: {
+    _id: string; 
+    id?: string; // Handle potential backend naming inconsistencies
     name: string;
     organizerName: string;
+    organizerEmail: string;
   };
 }
 
@@ -37,6 +43,10 @@ export function ProjectsContent() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // --- NEW STATE FOR DIALOG ---
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -64,6 +74,27 @@ export function ProjectsContent() {
     }
   };
 
+  // --- HANDLERS FOR ACTIONS ---
+  const handleCreateClick = () => {
+    setEditingProject(null); // Clear data -> Create Mode
+    setIsDialogOpen(true);
+  };
+
+  const handleEditClick = (project: Project) => {
+    // We normalize the team ID here to ensure the form reads it correctly
+    // Some backends return ._id, some .id depending on population
+    const preparedProject = {
+        ...project,
+        team: project.team ? {
+            ...project.team,
+            id: project.team._id || project.team.id // Ensure 'id' property exists for the form
+        } : undefined
+    };
+    
+    setEditingProject(preparedProject); // Load data -> Edit Mode
+    setIsDialogOpen(true);
+  };
+
   // Helper for status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -74,7 +105,6 @@ export function ProjectsContent() {
     }
   };
 
-  // Helper to format date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: 'numeric', month: 'short', day: 'numeric'
@@ -88,7 +118,11 @@ export function ProjectsContent() {
           <h2 className="text-3xl font-bold tracking-tight">Projects</h2>
           <p className="text-muted-foreground">Manage your event projects and teams.</p>
         </div>
-        <CreateProjectDialog onProjectCreated={fetchProjects} />
+        
+        {/* 👇 UPDATED: Uses standard button to trigger shared dialog */}
+        <Button onClick={handleCreateClick}>
+            <Plus className="mr-2 h-4 w-4" /> New Project
+        </Button>
       </div>
 
       {loading ? (
@@ -120,12 +154,17 @@ export function ProjectsContent() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => navigate(`/projects/${project._id}`)}>
+                      
+                      {/* View Details */}
+                      <DropdownMenuItem onClick={() => navigate(`/admin/projects/${project._id}`)}>
                         <Eye className="mr-2 h-4 w-4" /> View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      
+                      {/* 👇 UPDATED: Edit Button */}
+                      <DropdownMenuItem onClick={() => handleEditClick(project)}>
                         <Edit className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
+                      
                       <DropdownMenuItem 
                         className="text-red-600 focus:text-red-600"
                         onClick={() => handleDelete(project._id)}
@@ -170,6 +209,17 @@ export function ProjectsContent() {
           )}
         </div>
       )}
+
+      {/* 👇 NEW: The Reusable Project Dialog Component */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        {isDialogOpen && (
+            <ProjectDialog 
+                setOpen={setIsDialogOpen} 
+                onSuccess={fetchProjects} 
+                projectToEdit={editingProject} 
+            />
+        )}
+      </Dialog>
     </div>
   );
 }

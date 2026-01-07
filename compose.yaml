@@ -9,6 +9,9 @@ services:
     volumes:
       - ./server:/app
       - /app/node_modules
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 
   client:
     build: ./client

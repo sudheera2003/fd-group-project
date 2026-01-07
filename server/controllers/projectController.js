@@ -69,4 +69,20 @@ const getProjectById = async (req, res) => {
   }
 };
 
-module.exports = { getProjects, getMyProjects, createProject, deleteProject, getProjectById };
+const updateProjectById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // We use { new: true } to return the updated document
+    const updatedProject = await Project.findByIdAndUpdate(id, req.body, { new: true });
+
+    if (!updatedProject) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    res.json(updatedProject);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+module.exports = { getProjects, getMyProjects, createProject, deleteProject, getProjectById, updateProjectById };

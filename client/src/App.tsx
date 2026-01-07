@@ -22,6 +22,7 @@ import ApprovalsPage from "./components/content/organizer/approvals-page";
 import VenuesPage from "./components/content/admin/venues-page";
 import EventTypesPage from "./components/content/admin/event-types-page";
 import ProfilePage from "./components/content/profile-page";
+import AdminProjectDetails from "./components/content/admin/project-details-page";
 
 function App() {
   const { user, isLoading } = useAuth();
@@ -81,6 +82,7 @@ function App() {
               <Route path="/viewUsers" element={<ViewUsers />} />
               <Route path="/venues" element={<VenuesPage />} />
               <Route path="/event-types" element={<EventTypesPage />} />
+              <Route path="/admin/projects/:id" element={<AdminProjectDetails />} />
               {/* Admin Default Redirect */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Route>
