@@ -244,7 +244,7 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
                       type="date"
                       {...field}
                       min={minDate}
-                      className="date-picker-white-icon bg-secondary/50"
+                      className="bg-secondary/50 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 dark:[&::-webkit-calendar-picker-indicator]:invert"
                     />
                   </FormControl>
                   <FormMessage />
@@ -264,7 +264,7 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
                   <Input
                     type="time"
                     {...field}
-                    className="time-picker-white-icon bg-secondary/50"
+                    className="bg-secondary/50 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 dark:[&::-webkit-calendar-picker-indicator]:invert"
                   />
                 </FormControl>
                 <FormMessage />
@@ -431,14 +431,6 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
           </DialogFooter>
         </form>
       </Form>
-      <style>{`
-        .date-picker-white-icon::-webkit-calendar-picker-indicator,
-        .time-picker-white-icon::-webkit-calendar-picker-indicator {
-          filter: invert(1);
-          opacity: 0.6;
-          cursor: pointer;
-        }
-      `}</style>
     </DialogContent>
   );
 }

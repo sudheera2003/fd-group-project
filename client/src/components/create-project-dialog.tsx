@@ -9,6 +9,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -133,24 +140,28 @@ export function CreateProjectDialog({ onProjectCreated }: { onProjectCreated: ()
           {/* Dynamic Team Dropdown */}
           <div className="grid gap-2">
             <Label htmlFor="team">Assign Team</Label>
-            <select
-              id="team"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            <Select
               required
               value={formData.teamId}
-              onChange={(e) => setFormData({...formData, teamId: e.target.value})}
+              onValueChange={(value) => setFormData({ ...formData, teamId: value })}
             >
-              <option value="" disabled>Select a team...</option>
-              {teams.length > 0 ? (
-                teams.map((team) => (
-                  <option key={team._id} value={team._id}>
-                    {team.name} (Org: {team.organizer?.username || "Unknown"})
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>No teams found. Create one first.</option>
-              )}
-            </select>
+              <SelectTrigger id="team">
+                <SelectValue placeholder="Select a team..." />
+              </SelectTrigger>
+              <SelectContent>
+                {teams.length > 0 ? (
+                  teams.map((team) => (
+                    <SelectItem key={team._id} value={team._id}>
+                      {team.name} (Org: {team.organizer?.username || "Unknown"})
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="none" disabled>
+                    No teams found. Create one first.
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-2">
