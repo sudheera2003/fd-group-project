@@ -1,6 +1,7 @@
 const Team = require("../models/Team");
 const User = require("../models/User");
 const Project = require("../models/Project");
+const Task = require('../models/Task');
 
 // 1. Create Team with Validation
 const createTeam = async (req, res) => {
@@ -73,11 +74,12 @@ const updateTeam = async (req, res) => {
   const { name, description, organizerId, memberIds } = req.body;
 
   try {
-    // A. Find the existing team
-    const team = await Team.findById(id);
+    // 1. Find existing team & Populate Organizer to get their EMAIL
+    const team = await Team.findById(id).populate('organizer', 'username email');
+    
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    // B. Check Name Uniqueness (if name changed)
+    // 2. Check Name Uniqueness
     if (name !== team.name) {
       const existingName = await Team.findOne({ name });
       if (existingName) {
@@ -85,52 +87,76 @@ const updateTeam = async (req, res) => {
       }
     }
 
-    // --- LOGIC FOR SWAPPING MEMBERS ---
+    // --- 🛑 CRITICAL CHECK: ORGANIZER SWAP via EMAIL ---
+    const currentOrganizerId = team.organizer._id.toString();
+    const currentOrganizerEmail = team.organizer.email; // We need this!
 
-    // 1. Identify Current IDs vs New IDs
-    // Convert ObjectIds to strings for comparison
-    const currentOrganizerId = team.organizer.toString();
+    if (organizerId !== currentOrganizerId) {
+       // The Admin is trying to change the Organizer.
+       
+       // Check if the current organizer's EMAIL is listed on any active projects for this team
+       const activeProject = await Project.findOne({
+          "team.organizerEmail": currentOrganizerEmail, // Match by Email
+          "team.id": id,                                // Match by Team ID
+          status: { $in: ['Planning', 'In Progress'] }
+       });
+
+       if (activeProject) {
+          return res.status(400).json({ 
+             message: `Cannot change organizer: The current organizer (${team.organizer.username}) leads an active project "${activeProject.name}". Please complete or delete the project first.` 
+          });
+       }
+    }
+
+    // --- LOGIC FOR SWAPPING MEMBERS (Standard ID checks) ---
+
+    // Setup ID Lists
     const currentMemberIds = team.members.map((m) => m.toString());
     const allCurrentIds = [currentOrganizerId, ...currentMemberIds];
 
-    const newOrganizerId = organizerId;
-    const newMemberIds = memberIds; // Array of strings
-    const allNewIds = [newOrganizerId, ...newMemberIds];
+    const newMemberIds = memberIds; 
+    const allNewIds = [organizerId, ...newMemberIds];
 
-    // 2. Identify Users Removed (To set teamId = null)
-    // Users who were in the team but are NOT in the new list
     const usersToRemove = allCurrentIds.filter((uid) => !allNewIds.includes(uid));
-
-    // 3. Identify Users Added (To check availability and set teamId = team._id)
-    // Users who are in the new list but were NOT in the old list
     const usersToAdd = allNewIds.filter((uid) => !allCurrentIds.includes(uid));
 
-    // 4. Validate 'usersToAdd' - Are they already in a DIFFERENT team?
+    // Validate 'usersToAdd' (Check if busy)
     if (usersToAdd.length > 0) {
       const busyUsers = await User.find({
         _id: { $in: usersToAdd },
-        teamId: { $ne: null }, // They have a team
+        teamId: { $ne: null }, 
       });
 
       if (busyUsers.length > 0) {
         const names = busyUsers.map((u) => u.username).join(", ");
-        return res
-          .status(400)
-          .json({ message: `Users already in a team: ${names}` });
+        return res.status(400).json({ message: `Users already in a team: ${names}` });
       }
     }
 
     // --- EXECUTE UPDATES ---
 
-    // 5. Free the removed users
+    // Cleanup Removed Users
     if (usersToRemove.length > 0) {
       await User.updateMany(
         { _id: { $in: usersToRemove } },
         { $set: { teamId: null } }
       );
+
+      // Unassign Tasks (Reset to 'To Do', no owner)
+      await Task.updateMany(
+        { assignedTo: { $in: usersToRemove } },
+        { 
+          $set: { 
+            assignedTo: null, 
+            status: 'To Do',
+            submissionLink: '',
+            submissionNote: ''
+          } 
+        }
+      );
     }
 
-    // 6. Bind the new users
+    // Bind New Users
     if (usersToAdd.length > 0) {
       await User.updateMany(
         { _id: { $in: usersToAdd } },
@@ -138,7 +164,7 @@ const updateTeam = async (req, res) => {
       );
     }
 
-    // 7. Update the Team Document
+    // Update the Team Document
     team.name = name;
     team.description = description;
     team.organizer = organizerId;
@@ -146,7 +172,7 @@ const updateTeam = async (req, res) => {
     
     await team.save();
 
-    // 8. Return populated team
+    // Return populated result
     const updatedTeam = await Team.findById(team._id)
       .populate("organizer", "username email")
       .populate("members", "username email role")
