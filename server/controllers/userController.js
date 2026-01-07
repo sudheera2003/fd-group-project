@@ -49,17 +49,21 @@ const deleteUser = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // --- NEW CHECK: IS USER ON A TEAM? ---
-    // If teamId is not null, block deletion
+    // --- CHECK: IS USER ON A TEAM? ---
     if (user.teamId) {
+      // Find the team name to show in the error
+      const team = await Team.findById(user.teamId);
+      
+      const teamName = team ? team.name : "a team"; // Fallback if team not found
+      
       return res.status(400).json({ 
-        message: "User is currently assigned to a team. Please remove them from the team first." 
+        message: `User is currently assigned to the team "${teamName}". Please remove them from the team first.` 
       });
     }
 
     const userRole = user.role?.name?.toLowerCase(); 
 
-    // --- CHECK 1: ORGANIZER VALIDATION (Existing logic) ---
+    // --- CHECK 1: ORGANIZER VALIDATION ---
     if (userRole === 'organizer') {
       const projectCount = await Project.countDocuments({ 
         "team.organizerEmail": { $regex: new RegExp(`^${user.email}$`, "i") }
@@ -71,8 +75,7 @@ const deleteUser = async (req, res) => {
         });
       }
       
-      // Note: The 'teamId' check above catches organizers in teams, 
-      // but keeping your specific organizer/team query as a fallback is fine.
+      // Fallback check in case teamId was somehow missing but they are set as organizer
       const team = await Team.findOne({ organizer: id }); 
       if (team) {
         return res.status(400).json({ 
@@ -81,9 +84,7 @@ const deleteUser = async (req, res) => {
       }
     }
 
-    // --- CHECK 2: MEMBER CLEANUP (Existing logic) ---
-    // If they passed the teamId check above, they are not "officially" in a team,
-    // but we can run this cleanup just in case there's stale data.
+    // --- CHECK 2: MEMBER CLEANUP ---
     if (userRole === 'member') {
       await Task.updateMany(
         { assignedTo: id },

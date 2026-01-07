@@ -1,5 +1,6 @@
 const Team = require("../models/Team");
 const User = require("../models/User");
+const Project = require("../models/Project");
 
 // 1. Create Team with Validation
 const createTeam = async (req, res) => {
@@ -159,10 +160,47 @@ const updateTeam = async (req, res) => {
   }
 };
 
+// 4. Delete Team
+const deleteTeam = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const team = await Team.findById(id);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    // --- FIX: QUERY THE NESTED 'team.id' FIELD ---
+    // We use quotes "team.id" to query inside the team object
+    const project = await Project.findOne({ "team.id": id });
+
+    // Debugging logs
+    console.log(`Deleting Team ID: ${id}`);
+    console.log(`Found Project:`, project);
+
+    if (project) {
+      return res.status(400).json({ 
+        message: `Cannot delete: This team is assigned to the project "${project.name}". Please delete the project first.` 
+      });
+    }
+
+    // --- FREE USERS FROM TEAM ---
+    const allMemberIds = [team.organizer, ...team.members];
+    await User.updateMany(
+      { _id: { $in: allMemberIds } },
+      { $set: { teamId: null } }
+    );
+
+    await Team.findByIdAndDelete(id);
+    res.json({ message: "Team deleted successfully" });
+  } catch (err) {
+    console.error("Delete Team Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // 3. Delete Team Logic
 // Since you now lock users into a team by setting their teamId, 
 // you have created a constraint. Later, when you implement "Delete Team," you must remember to free them.
 
 // Task: When a team is deleted, find all members of that team and set their teamId back to null. 
 // Otherwise, they will be stuck forever and can't join new teams.
-module.exports = { createTeam, getTeams, updateTeam };
+module.exports = { createTeam, getTeams, updateTeam, deleteTeam };
