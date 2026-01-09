@@ -223,10 +223,21 @@ const deleteTeam = async (req, res) => {
   }
 };
 
-// 3. Delete Team Logic
-// Since you now lock users into a team by setting their teamId, 
-// you have created a constraint. Later, when you implement "Delete Team," you must remember to free them.
+const getTeamById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const team = await Team.findById(id)
+      .populate("organizer", "username email")
+      .populate("members", "username email role");
 
-// Task: When a team is deleted, find all members of that team and set their teamId back to null. 
-// Otherwise, they will be stuck forever and can't join new teams.
-module.exports = { createTeam, getTeams, updateTeam, deleteTeam };
+    if (!team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+
+    res.json(team);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { createTeam, getTeams, updateTeam, deleteTeam, getTeamById };

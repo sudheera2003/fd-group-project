@@ -23,6 +23,7 @@ import VenuesPage from "./components/content/admin/venues-page";
 import EventTypesPage from "./components/content/admin/event-types-page";
 import ProfilePage from "./components/content/profile-page";
 import AdminProjectDetails from "./components/content/admin/project-details-page";
+import ViewTeamPage from "./components/content/view-team";
 
 function App() {
   const { user, isLoading } = useAuth();
@@ -73,6 +74,14 @@ function App() {
 
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
+            {/* MEMBERS AND ORGANIZERS */}
+            <Route element={
+                <ProtectedRoute allowedRoles={["organizer", "member"]} />
+              }
+            >
+              <Route path="/view-team" element={<ViewTeamPage />} />
+            </Route>
+
             {/* A. ADMIN ROUTES */}
             <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
               <Route path="/lifecycle" element={<LifecycleContent />} />
@@ -82,7 +91,10 @@ function App() {
               <Route path="/viewUsers" element={<ViewUsers />} />
               <Route path="/venues" element={<VenuesPage />} />
               <Route path="/event-types" element={<EventTypesPage />} />
-              <Route path="/admin/projects/:id" element={<AdminProjectDetails />} />
+              <Route
+                path="/admin/projects/:id"
+                element={<AdminProjectDetails />}
+              />
               {/* Admin Default Redirect */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Route>

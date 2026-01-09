@@ -129,13 +129,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
     { title: "My Projects", url: "/organizer/projects", icon: LayersIcon },
     { title: "Approvals", url: "/organizer/approvals", icon: CheckSquareIcon },
-    { title: "Team Chat", url: "/team", icon: UserCircleIcon },
+    { title: "Team", url: "/view-team", icon: UserCircleIcon },
   ];
 
   const memberMenu = [
     { title: "My Tasks", url: "/member/tasks", icon: CheckSquareIcon },
     { title: "Schedule", url: "/member/schedule", icon: Calendar },
-    { title: "Team Chat", url: "/team", icon: UserCircleIcon },
+    { title: "Team", url: "/view-team", icon: UserCircleIcon },
   ];
 
   let currentMenu = memberMenu;
