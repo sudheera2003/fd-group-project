@@ -142,4 +142,30 @@ const getPendingReviews = async (req, res) => {
   }
 };
 
-module.exports = { getEventTasks, createTask, deleteTask, getTeamMembers, getMemberTasks, updateTaskStatus, submitTask, reviewTask, getPendingReviews };
+const reassignTask = async (req, res) => {
+  try {
+    const { id } = req.params;       // Task ID
+    const { memberId } = req.body;   // New Member ID
+
+    // 1. Update the task
+    const updatedTask = await Task.findByIdAndUpdate(
+      id, 
+      { 
+        assignedTo: memberId,
+        // Optional: If the task was "Done" but now reassigned, maybe reset status?
+        // For now, let's keep the existing status or force it to 'To Do' if you prefer.
+      }, 
+      { new: true }
+    ).populate('assignedTo', 'username email');
+
+    if (!updatedTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    res.json(updatedTask);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { getEventTasks, createTask, deleteTask, getTeamMembers, getMemberTasks, updateTaskStatus, submitTask, reviewTask, getPendingReviews, reassignTask };

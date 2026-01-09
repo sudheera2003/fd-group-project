@@ -125,6 +125,7 @@ const deleteUser = async (req, res) => {
   }
 };
 
+
 // Update User Profile (Self)
 const updateUserProfile = async (req, res) => {
   try {
