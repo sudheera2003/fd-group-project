@@ -20,23 +20,38 @@ const updateUserRole = async (req, res) => {
     const { id } = req.params;
     const { roleName } = req.body;
 
+    // 1. Find User first to check Team status
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // --- CHECK: IS USER ON A TEAM? ---
+    if (user.teamId) {
+      const team = await Team.findById(user.teamId);
+      const teamName = team ? team.name : "Unknown Team";
+      
+      return res.status(400).json({ 
+        message: `User is currently a member of the team "${teamName}". Please remove them from the team first.` 
+      });
+    }
+
+    // 2. Find Role
     const newRole = await Role.findOne({ name: roleName });
     if (!newRole) {
       return res.status(404).json({ message: "Role not found" });
     }
 
+    // 3. Update User
     const updatedUser = await User.findByIdAndUpdate(
       id, 
       { role: newRole._id }, 
       { new: true }
     ).populate('role', 'name');
 
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
     res.json(updatedUser);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };

@@ -131,11 +131,15 @@ export function ViewUsers() {
         body: JSON.stringify({ roleName: newRoleName }),
       });
 
+      const data = await res.json(); // Parse the response
+
       if (res.ok) {
         toast.success(`User role updated to ${newRoleName}`);
         fetchData();
       } else {
-        toast.error("Failed to update role");
+        // --- ERROR HANDLING ---
+        // If backend sends 400 (User on team), show the Alert Dialog
+        setAlertError(data.message || "Failed to update role");
       }
     } catch (error) {
       toast.error("Server error");
@@ -363,11 +367,13 @@ export function ViewUsers() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 2. ERROR DIALOG (For Team/Organizer Conflict) */}
+      {/* --- UPDATED ERROR DIALOG --- */}
+      {/* Reused for both Delete and Promote errors */}
       <AlertDialog open={!!alertError} onOpenChange={(open) => !open && setAlertError(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">Cannot Delete User</AlertDialogTitle>
+            {/* Changed Title to be generic */}
+            <AlertDialogTitle className="text-red-600">Action Blocked</AlertDialogTitle> 
             <AlertDialogDescription>
               {alertError}
             </AlertDialogDescription>
