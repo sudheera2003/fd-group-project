@@ -16,8 +16,19 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog } from "@/components/ui/dialog"; // Import Root Dialog
-import ProjectDialog from "./project-dialog"; // Import your NEW reusable dialog
+import { Dialog } from "@/components/ui/dialog"; 
+// 1. IMPORT ALERT DIALOG COMPONENTS
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import ProjectDialog from "./project-dialog"; 
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -29,10 +40,9 @@ interface Project {
   description: string;
   deadline: string;
   status: string;
-  // Updated team interface to include _id for the Edit Form
   team?: {
     _id: string; 
-    id?: string; // Handle potential backend naming inconsistencies
+    id?: string; 
     name: string;
     organizerName: string;
     organizerEmail: string;
@@ -44,9 +54,11 @@ export function ProjectsContent() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // --- NEW STATE FOR DIALOG ---
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+
+  // 2. DELETE STATE (Stores ID of project to delete)
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -63,39 +75,40 @@ export function ProjectsContent() {
     fetchProjects();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this project?")) return;
+  // 3. CONFIRM DELETE LOGIC
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await api.delete(`/projects/${id}`);
+      await api.delete(`/projects/${deleteId}`);
       toast.success("Project deleted");
-      fetchProjects();
+      
+      // Optimistic update for speed
+      setProjects(projects.filter(p => p._id !== deleteId));
+      
+      setDeleteId(null); // Close dialog
     } catch (error) {
       toast.error("Failed to delete project");
     }
   };
 
-  // --- HANDLERS FOR ACTIONS ---
   const handleCreateClick = () => {
-    setEditingProject(null); // Clear data -> Create Mode
+    setEditingProject(null); 
     setIsDialogOpen(true);
   };
 
   const handleEditClick = (project: Project) => {
-    // We normalize the team ID here to ensure the form reads it correctly
-    // Some backends return ._id, some .id depending on population
     const preparedProject = {
         ...project,
         team: project.team ? {
             ...project.team,
-            id: project.team._id || project.team.id // Ensure 'id' property exists for the form
+            id: project.team._id || project.team.id 
         } : undefined
     };
     
-    setEditingProject(preparedProject); // Load data -> Edit Mode
+    setEditingProject(preparedProject); 
     setIsDialogOpen(true);
   };
 
-  // Helper for status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
       case "In Progress": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
@@ -113,13 +126,31 @@ export function ProjectsContent() {
 
   return (
     <div className="space-y-6">
+      {/* 4. ALERT DIALOG COMPONENT */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the project 
+              and remove all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete Project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Projects</h2>
           <p className="text-muted-foreground">Manage your event projects and teams.</p>
         </div>
         
-        {/* 👇 UPDATED: Uses standard button to trigger shared dialog */}
         <Button onClick={handleCreateClick}>
             <Plus className="mr-2 h-4 w-4" /> New Project
         </Button>
@@ -155,19 +186,18 @@ export function ProjectsContent() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       
-                      {/* View Details */}
                       <DropdownMenuItem onClick={() => navigate(`/admin/projects/${project._id}`)}>
                         <Eye className="mr-2 h-4 w-4" /> View Details
                       </DropdownMenuItem>
                       
-                      {/* 👇 UPDATED: Edit Button */}
                       <DropdownMenuItem onClick={() => handleEditClick(project)}>
                         <Edit className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
                       
+                      {/* 5. UPDATE DELETE ACTION TO SET STATE */}
                       <DropdownMenuItem 
                         className="text-red-600 focus:text-red-600"
-                        onClick={() => handleDelete(project._id)}
+                        onClick={() => setDeleteId(project._id)}
                       >
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
@@ -210,7 +240,6 @@ export function ProjectsContent() {
         </div>
       )}
 
-      {/* 👇 NEW: The Reusable Project Dialog Component */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         {isDialogOpen && (
             <ProjectDialog 

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react"; // 1. Import useCallback
 import { useParams, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import { useRealTime } from "@/hooks/use-real-time"; // 2. Import Real-Time Hook
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,13 +19,11 @@ export default function AdminProjectDetails() {
 
   const [project, setProject] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
-  const [tasksMap, setTasksMap] = useState<Record<string, any[]>>({}); // Map EventID -> Tasks[]
+  const [tasksMap, setTasksMap] = useState<Record<string, any[]>>({});
 
-  useEffect(() => {
-    fetchData();
-  }, [id]);
-
-  const fetchData = async () => {
+  // --- 3. DEFINE FETCH FUNCTION (Stable Callback) ---
+  const fetchData = useCallback(async () => {
+    if (!id) return;
     try {
       // 1. Fetch Project & Events
       const [projRes, eventRes] = await Promise.all([
@@ -34,16 +33,14 @@ export default function AdminProjectDetails() {
       setProject(projRes.data);
       setEvents(eventRes.data);
 
-      // 2. Fetch Tasks for ALL events (to avoid N+1 clicks later)
-      // Note: A better backend approach would be a single aggregation endpoint.
-      // For now, we loop through events.
+      // 2. Fetch Tasks for ALL events
       const taskPromises = eventRes.data.map((evt: any) => 
         api.get(`/tasks/event/${evt._id}`).then(res => ({ eventId: evt._id, tasks: res.data }))
       );
       
       const tasksResults = await Promise.all(taskPromises);
       
-      // Convert array to Map for easy lookup: { "evt_123": [task1, task2] }
+      // Convert array to Map
       const newMap: Record<string, any[]> = {};
       tasksResults.forEach((item: any) => {
         newMap[item.eventId] = item.tasks;
@@ -51,9 +48,24 @@ export default function AdminProjectDetails() {
       setTasksMap(newMap);
 
     } catch (error) {
-      toast.error("Failed to load project details");
+      console.error("Failed to load details", error);
     }
-  };
+  }, [id]);
+
+  // --- 4. INITIAL LOAD ---
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // --- 5. REAL-TIME LISTENERS ---
+  // If the project details change (status, etc.)
+  useRealTime("project_update", fetchData);
+  
+  // If events are added/removed/edited
+  useRealTime("event_update", fetchData);
+  
+  // If tasks are updated/completed inside the events
+  useRealTime("task_update", fetchData);
 
   if (!project) return <div className="p-10 text-center">Loading...</div>;
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react"; // 1. Import useCallback
 import { Calendar, type CalendarEvent } from "@/components/ui/calendar";
+import { useRealTime } from "@/hooks/use-real-time"; // 2. Import Real-Time Hook
 import api from "@/lib/api";
 import EventDialog from "./event-dialog";
 
@@ -12,40 +13,46 @@ export function DashboardContent() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const res = await api.get("/events");
+  // --- 3. DEFINE FETCH FUNCTION (Stable Callback) ---
+  const fetchEvents = useCallback(async () => {
+    try {
+      const res = await api.get("/events");
 
-        const mappedEvents: CalendarEvent[] = res.data.map((event: any) => {
-          const eventDate = new Date(event.date);
+      const mappedEvents: CalendarEvent[] = res.data.map((event: any) => {
+        const eventDate = new Date(event.date);
 
-          return {
-            id: event._id,
-            title: event.name,
-            date: eventDate,
-            time: eventDate.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            color: event.color || "#3b82f6",
-            durationMinutes: event.durationMinutes,
-            budget: event.budget,
-            venue: event.venue?.name,
-            eventType: event.eventType?.name,
-          };
-        });
+        return {
+          id: event._id,
+          title: event.name,
+          date: eventDate,
+          time: eventDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          color: event.color || "#3b82f6",
+          durationMinutes: event.durationMinutes,
+          budget: event.budget,
+          venue: event.venue?.name,
+          eventType: event.eventType?.name,
+        };
+      });
 
-        setEvents(mappedEvents);
-      } catch (error) {
-        console.error("Failed to load events", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEvents();
+      setEvents(mappedEvents);
+    } catch (error) {
+      console.error("Failed to load events", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // --- 4. INITIAL LOAD ---
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  // --- 5. REAL-TIME LISTENER ---
+  // Listen for "event_update" signal from backend
+  useRealTime("event_update", fetchEvents);
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);

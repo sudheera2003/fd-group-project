@@ -1,4 +1,4 @@
-// controllers/venueController.js
+
 const Venue = require('../models/Venue');
 
 const getVenues = async (req, res) => {
@@ -15,7 +15,7 @@ const createVenue = async (req, res) => {
     const newVenue = new Venue(req.body);
     await newVenue.save();
 
-    req.io.emit("setting_update", { type: "venue" });
+    req.io.emit("venue_update", { action: "create" });
     
     res.status(201).json({ message: "Venue created!" });
   } catch (err) {
@@ -28,6 +28,9 @@ const deleteVenue = async (req, res) => {
     const { id } = req.params;
     const deleted = await Venue.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ message: "Venue not found" });
+
+    req.io.emit("venue_update", { action: "delete", id });
+
     res.json({ message: "Venue deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -39,6 +42,9 @@ const updateVenue = async (req, res) => {
     const { id } = req.params;
     const updated = await Venue.findByIdAndUpdate(id, req.body, { new: true });
     if (!updated) return res.status(404).json({ message: "Venue not found" });
+
+    req.io.emit("venue_update", { action: "update", id });
+
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });

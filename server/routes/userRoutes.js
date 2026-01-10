@@ -10,7 +10,7 @@ router.get('/users', getUsers);
 router.put('/users/:id/role', updateUserRole);
 router.delete('/users/:id', deleteUser);
 router.put('/users/:id', updateUserProfile);
-router.get('/:id', getUserById);
+router.get('/users/:id', getUserById);
 router.post('/register', registerUser); // 2. Define route for registration
 
 module.exports = router; // 3. Export the router

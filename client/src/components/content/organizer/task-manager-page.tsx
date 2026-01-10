@@ -6,6 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger,
 } from "@/components/ui/dialog";
+// 👇 1. IMPORT ALERT DIALOG COMPONENTS
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -32,8 +43,11 @@ export default function TaskManagerPage() {
   const [newTask, setNewTask] = useState({ description: "", assignedTo: "", priority: "Medium" });
 
   // Reassign Dialog State
-  const [reassignTask, setReassignTask] = useState<any>(null); // The task object being fixed
+  const [reassignTask, setReassignTask] = useState<any>(null);
   const [newAssignee, setNewAssignee] = useState("");
+
+  // 👇 2. DELETE STATE (Stores the ID of the task to be deleted)
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
 
@@ -66,28 +80,28 @@ export default function TaskManagerPage() {
     finally { setLoading(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this task?")) return;
+  // 👇 3. NEW DELETE LOGIC (Triggered by the Dialog)
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await api.delete(`/tasks/${id}`);
-      setTasks(tasks.filter(t => t._id !== id));
+      await api.delete(`/tasks/${deleteId}`);
+      setTasks(tasks.filter(t => t._id !== deleteId));
       toast.success("Task deleted");
-    } catch (e) { toast.error("Could not delete task"); }
+    } catch (e) { 
+      toast.error("Could not delete task"); 
+    } finally {
+      setDeleteId(null); // Close the dialog
+    }
   };
 
-  // 👇 NEW FUNCTION: Handle Reassignment
   const handleReassign = async () => {
     if (!reassignTask || !newAssignee) return toast.error("Select a member");
     
     try {
       await api.patch(`/tasks/${reassignTask._id}/assign`, { memberId: newAssignee });
       toast.success("Task reassigned successfully");
-      
-      // Close dialog and reset state
       setReassignTask(null);
       setNewAssignee("");
-      
-      // Refresh list to show new avatar
       fetchData(); 
     } catch (error) {
       toast.error("Failed to reassign task");
@@ -110,6 +124,24 @@ export default function TaskManagerPage() {
 
   return (
     <div className="space-y-6">
+      {/* --- 4. ALERT DIALOG COMPONENT --- */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this task from the event.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
@@ -154,7 +186,7 @@ export default function TaskManagerPage() {
         </Dialog>
       </div>
 
-      {/* --- REASSIGN DIALOG (Pop up when 'reassignTask' is set) --- */}
+      {/* Reassign Dialog */}
       <Dialog open={!!reassignTask} onOpenChange={(open) => !open && setReassignTask(null)}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -204,8 +236,6 @@ export default function TaskManagerPage() {
                 tasks.map((task) => (
                   <TableRow key={task._id}>
                     <TableCell className="font-medium">{task.description}</TableCell>
-                    
-                    {/* 👇 ASSIGNEE LOGIC: Check if assignedTo exists */}
                     <TableCell>
                         {task.assignedTo ? (
                             <div className="flex items-center gap-2">
@@ -234,7 +264,8 @@ export default function TaskManagerPage() {
                         <Badge variant="secondary" className={getStatusColor(task.status)}>{task.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="hover:text-red-600" onClick={() => handleDelete(task._id)}>
+                        {/* 👇 5. UPDATE CLICK HANDLER TO SET ID INSTEAD OF DELETE IMMEDIATELY */}
+                        <Button variant="ghost" size="icon" className="hover:text-red-600" onClick={() => setDeleteId(task._id)}>
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </TableCell>

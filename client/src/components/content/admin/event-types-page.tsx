@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react"; // 1. Import useCallback
 import {
   flexRender,
   getCoreRowModel,
@@ -11,6 +11,7 @@ import {
   type ColumnFiltersState,
   type VisibilityState,
 } from "@tanstack/react-table";
+import { useRealTime } from "@/hooks/use-real-time"; // 2. Import Real-Time Hook
 import { MoreHorizontal, ChevronDown, Plus, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,18 +71,24 @@ export default function EventTypesPage() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
-  const fetchData = async () => {
+  // --- 3. DEFINE FETCH FUNCTION (Stable Callback) ---
+  const fetchData = useCallback(async () => {
     try {
       const res = await fetch("http://localhost:5000/api/event-types");
       if (res.ok) setData(await res.json());
     } catch (e) {
       toast.error("Failed to load types");
     }
-  };
+  }, []);
 
+  // --- 4. INITIAL LOAD ---
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  // --- 5. REAL-TIME LISTENER ---
+  // Listen for "eventType_update" from backend
+  useRealTime("eventType_update", fetchData);
 
   // --- PRE-FILL FORM FOR EDITING ---
   const handleEdit = (type: EventType) => {
@@ -130,7 +137,7 @@ export default function EventTypesPage() {
           editingId ? "Event Type updated!" : "Event Type created!"
         );
         resetForm();
-        fetchData();
+        // fetchData(); // Removed manual call, socket will handle it
       } else {
         toast.error("Failed to save type");
       }
@@ -150,7 +157,7 @@ export default function EventTypesPage() {
       );
       if (res.ok) {
         toast.success("Event Type deleted");
-        fetchData();
+        // fetchData(); // Removed manual call, socket will handle it
       } else {
         toast.error("Failed to delete");
       }

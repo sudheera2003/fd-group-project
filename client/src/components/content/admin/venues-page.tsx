@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react"; // 1. Import useCallback
 import {
   flexRender,
   getCoreRowModel,
@@ -11,6 +11,7 @@ import {
   type ColumnFiltersState,
   type VisibilityState,
 } from "@tanstack/react-table";
+import { useRealTime } from "@/hooks/use-real-time"; // 2. Import Real-Time Hook
 import { MoreHorizontal, ChevronDown, Plus, MapPin, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,18 +73,24 @@ export default function VenuesPage() {
   const [newLocation, setNewLocation] = useState("");
   const [newCapacity, setNewCapacity] = useState("");
 
-  const fetchData = async () => {
+  // --- 3. DEFINE FETCH FUNCTION (Stable Callback) ---
+  const fetchData = useCallback(async () => {
     try {
       const res = await fetch("http://localhost:5000/api/venues");
       if (res.ok) setData(await res.json());
     } catch (e) {
       toast.error("Failed to load venues");
     }
-  };
+  }, []);
 
+  // --- 4. INITIAL LOAD ---
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  // --- 5. REAL-TIME LISTENER ---
+  // Listen for "venue_update" from backend
+  useRealTime("venue_update", fetchData);
 
   // --- PRE-FILL FORM FOR EDITING ---
   const handleEdit = (venue: Venue) => {
@@ -133,7 +140,7 @@ export default function VenuesPage() {
       if (res.ok) {
         toast.success(editingId ? "Venue updated!" : "Venue created!");
         resetForm();
-        fetchData();
+        // fetchData(); // Removed manual call, socket handles it
       } else {
         toast.error("Failed to save venue");
       }
@@ -150,7 +157,7 @@ export default function VenuesPage() {
       });
       if (res.ok) {
         toast.success("Venue deleted");
-        fetchData();
+        // fetchData(); // Removed manual call, socket handles it
       } else {
         toast.error("Failed to delete");
       }

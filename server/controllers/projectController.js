@@ -84,6 +84,8 @@ const updateProjectById = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
+    req.io.emit("project_update", { action: "update", projectId: id });
+
     res.json(updatedProject);
   } catch (err) {
     res.status(400).json({ message: err.message });

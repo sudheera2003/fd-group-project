@@ -7,8 +7,6 @@ import { useAuth } from "./hooks/use-auth";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import { LoginForm } from "./components/content/login-form";
 import { DashboardContent } from "@/components/content/dashboard-content";
-import { LifecycleContent } from "@/components/content/lifecycle-content";
-import { AnalyticsContent } from "@/components/content/analytics-content";
 import { ProjectsContent } from "@/components/content/admin/projects-content";
 import TeamsPage from "@/components/content/team-content";
 import { ViewUsers } from "./components/content/view-users";
@@ -86,8 +84,6 @@ function App() {
 
             {/* A. ADMIN ROUTES */}
             <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-              <Route path="/lifecycle" element={<LifecycleContent />} />
-              <Route path="/analytics" element={<AnalyticsContent />} />
               <Route path="/projects" element={<ProjectsContent />} />
               <Route path="/team" element={<TeamsPage />} />
               <Route path="/viewUsers" element={<ViewUsers />} />

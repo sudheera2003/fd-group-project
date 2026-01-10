@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react"; // 1. Import useCallback
 import api from "@/lib/api";
+import { useRealTime } from "@/hooks/use-real-time"; // 2. Import Real-Time Hook
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
 } from "@/components/ui/dialog";
 import { 
-  CheckCircle2, XCircle, ExternalLink, Clock, MessageSquare} from "lucide-react";
+  CheckCircle2, XCircle, ExternalLink, Clock, MessageSquare
+} from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -19,23 +21,35 @@ export default function ApprovalsPage() {
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
 
-  useEffect(() => {
-    fetchReviews();
-  }, []);
-
-  const fetchReviews = async () => {
+  // --- 3. DEFINE FETCH FUNCTION (Stable Callback) ---
+  const fetchReviews = useCallback(async () => {
     try {
       const res = await api.get("/tasks/reviews/pending");
       setReviews(res.data);
-    } catch (error) { toast.error("Failed to load approvals"); }
-  };
+    } catch (error) { 
+      // Optional: console.error(error); 
+      // Avoid toasting on background updates to keep UI clean
+    }
+  }, []);
+
+  // --- 4. INITIAL LOAD ---
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
+  // --- 5. REAL-TIME LISTENER ---
+  // When a member submits a task -> it appears here.
+  // When you (or another admin) approve/reject -> it disappears from here.
+  useRealTime("task_update", fetchReviews);
 
   const handleApprove = async (task: any) => {
     try {
       await api.post(`/tasks/${task._id}/review`, { status: 'Done' });
       toast.success("Task Approved");
-      fetchReviews(); // Refresh list
-    } catch (e) { toast.error("Approval failed"); }
+      // fetchReviews(); // Removed manual call, socket handles it
+    } catch (e) { 
+      toast.error("Approval failed"); 
+    }
   };
 
   const handleReject = async () => {
@@ -48,8 +62,10 @@ export default function ApprovalsPage() {
       toast.success("Task Rejected");
       setRejectId(null);
       setFeedback("");
-      fetchReviews();
-    } catch (e) { toast.error("Rejection failed"); }
+      // fetchReviews(); // Removed manual call, socket handles it
+    } catch (e) { 
+      toast.error("Rejection failed"); 
+    }
   };
 
   return (

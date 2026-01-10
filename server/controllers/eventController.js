@@ -100,6 +100,8 @@ const updateEvent = async (req, res) => {
     // { new: true } returns the updated document instead of the old one
     const updatedEvent = await Event.findByIdAndUpdate(id, updateData, { new: true });
 
+    req.io.emit("event_update", { action: "update", eventId: id });
+
     res.json(updatedEvent);
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -1,6 +1,9 @@
+"use client";
+
 import * as React from "react";
 import { useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
+import { useRealTime } from "@/hooks/use-real-time"; // <--- 1. IMPORT HOOK
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -75,11 +78,51 @@ const documents = [
 
 // --- Main Component ---
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  // Use location to highlight the active menu item automatically
   const location = useLocation();
-  const { user: authUser } = useAuth();
+  const { user: authUser } = useAuth(); // Use this only for ID and initial state
 
-  // Define menus for different roles
+  // --- 2. LOCAL STATE FOR LIVE UPDATES ---
+  // Start with session data so it's not empty, but we'll update it instantly
+  const [liveUser, setLiveUser] = React.useState({
+    name: authUser?.username || "User",
+    email: authUser?.email || "user@example.com",
+    avatar: "/avatars/avatar-1.jpg",
+    role: authUser?.role || "member", // Keep track of role too
+  });
+
+  // --- 3. FETCH FRESH DATA ---
+  const refreshUserData = React.useCallback(async () => {
+    if (!authUser?.id) return;
+
+    try {
+      const res = await fetch(`http://localhost:5000/users/${authUser.id}`);
+      const data = await res.json();
+
+      if (res.ok) {
+        setLiveUser({
+          name: data.username,
+          email: data.email,
+          avatar: "/avatars/avatar-1.jpg", // You can update this if you add real avatar URLs later
+          role: data.role?.name || data.role || "member", // Handle populated role object or string ID
+        });
+      }
+    } catch (error) {
+      console.error("Failed to refresh sidebar user data");
+    }
+  }, [authUser?.id]);
+
+  // Initial Load
+  React.useEffect(() => {
+    refreshUserData();
+  }, [refreshUserData]);
+
+  // --- 4. REAL-TIME LISTENER ---
+  // When you update your profile on the Profile Page, this Sidebar will now hear it!
+  useRealTime("user_update", () => {
+    refreshUserData();
+  });
+
+  // Define menus for different roles (Using liveUser.role now)
   const adminMenu = [
     { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
     { title: "All Projects", url: "/projects", icon: LayersIcon },
@@ -99,18 +142,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     { title: "Team", url: "/view-team", icon: UserCircleIcon },
   ];
 
+  // Determine Menu based on LIVE role
   let currentMenu = memberMenu;
-  if (authUser?.role === "admin") {
+  // Normalize role check (handle objects or strings)
+  const roleName = typeof liveUser.role === 'string' ? liveUser.role : (liveUser.role as any).name;
+  
+  if (roleName === "admin") {
     currentMenu = adminMenu;
-  } else if (authUser?.role === "organizer") {
+  } else if (roleName === "organizer") {
     currentMenu = organizerMenu;
   }
 
-  const userData = {
-    name: authUser?.username || "User",
-    email: authUser?.email || "user@example.com",
-    avatar: "/avatars/avatar-1.jpg",
-  };
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -132,7 +174,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={currentMenu} currentPath={location.pathname} />
-        {authUser?.role === "admin" && (
+        {/* Check Live Role for Admin Menu */}
+        {roleName === "admin" && (
           <>
             <NavDocuments items={documents} />
             <NavSecondary items={navSecondary} className="mt-auto" />
@@ -140,7 +183,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={userData} />
+        {/* Pass the LIVE user data to the footer */}
+        <NavUser user={liveUser} />
       </SidebarFooter>
     </Sidebar>
   );
@@ -159,7 +203,6 @@ function NavMain({
   }[];
   currentPath: string;
 }) {
-  const [] = React.useState(false);
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Event Management</SidebarGroupLabel>
@@ -266,9 +309,8 @@ function NavUser({
 }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [isLogoutOpen, setIsLogoutOpen] = React.useState(false); // State for dialog
+  const [isLogoutOpen, setIsLogoutOpen] = React.useState(false);
 
-  // Actual logout logic
   const confirmLogout = () => {
     logout();
     navigate("/login");
@@ -336,7 +378,6 @@ function NavUser({
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              {/* CHANGED: Opens dialog instead of logging out immediately */}
               <DropdownMenuItem
                 onClick={() => setIsLogoutOpen(true)}
                 className="cursor-pointer text-red-600 focus:text-red-600"
@@ -349,7 +390,6 @@ function NavUser({
         </SidebarMenuItem>
       </SidebarMenu>
 
-      {/* Logout Confirmation Dialog */}
       <AlertDialog open={isLogoutOpen} onOpenChange={setIsLogoutOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

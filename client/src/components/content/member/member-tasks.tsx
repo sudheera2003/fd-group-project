@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+"use client";
+
+import { useEffect, useState, useCallback } from "react"; // 1. Import useCallback
 import { useAuth } from "@/hooks/use-auth";
+import { useRealTime } from "@/hooks/use-real-time"; // 2. Import Real-Time Hook
 import api from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,16 +25,26 @@ export default function MemberTasks() {
   const [submitData, setSubmitData] = useState({ note: "", link: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (user?.id) fetchTasks();
+  // --- 3. DEFINE FETCH FUNCTION (Stable Callback) ---
+  const fetchTasks = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const res = await api.get(`/tasks/member/${user.id}`);
+      setTasks(res.data);
+    } catch (error) { 
+      console.error("Failed to load tasks", error);
+      // Optional: toast.error("Failed to load tasks"); 
+    }
   }, [user?.id]);
 
-  const fetchTasks = async () => {
-    try {
-      const res = await api.get(`/tasks/member/${user?.id}`);
-      setTasks(res.data);
-    } catch (error) { toast.error("Failed to load tasks"); }
-  };
+  // --- 4. INITIAL LOAD ---
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  // --- 5. REAL-TIME LISTENER ---
+  // When an organizer assigns a task OR status changes, this refreshes the list instantly
+  useRealTime("task_update", fetchTasks);
 
   const handleSubmitWork = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,9 +54,14 @@ export default function MemberTasks() {
     try {
       await api.post(`/tasks/${selectedTask}/submit`, submitData);
       toast.success("Work submitted for review!");
+      
+      // We don't necessarily need to manually call fetchTasks() here 
+      // because the backend *should* emit "task_update" upon submission.
+      // But keeping it for immediate feedback is fine too.
+      fetchTasks(); 
+      
       setSelectedTask(null);
       setSubmitData({ note: "", link: "" });
-      fetchTasks(); // Refresh UI
     } catch (error) {
       toast.error("Failed to submit work");
     } finally {
@@ -137,7 +155,7 @@ export default function MemberTasks() {
             <CardContent className="flex-1 flex flex-col gap-4">
               <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md space-y-1">
                 <div className="flex items-center gap-2"><Calendar className="h-3 w-3" /> {new Date(task.eventId?.date).toLocaleDateString()}</div>
-                <div className="flex items-center gap-2"><MapPin className="h-3 w-3" /> {task.eventId?.venue.name || "TBD"}</div>
+                <div className="flex items-center gap-2"><MapPin className="h-3 w-3" /> {task.eventId?.venue?.name || "TBD"}</div>
               </div>
 
               <div className="mt-auto pt-2">
