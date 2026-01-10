@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useAuth } from "@/hooks/use-auth"; // Ensure this path is correct for your project
+import { useAuth } from "@/hooks/use-auth";
+import { useRealTime } from "@/hooks/use-real-time"; // <--- 1. IMPORT THIS
+
 import {
   flexRender,
   getCoreRowModel,
@@ -18,7 +20,8 @@ import {
   ArrowUpDown,
   ChevronDown,
   MoreHorizontal,
-  Loader2} from "lucide-react";
+  Loader2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -50,7 +53,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// --- NEW IMPORTS FOR DELETE DIALOG ---
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,7 +63,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-// -------------------------------------
 import { toast } from "sonner";
 
 export type User = {
@@ -86,21 +87,27 @@ export function ViewUsers() {
   const [loading, setLoading] = React.useState(true);
 
   //DIALOG STATE
-  const [deleteId, setDeleteId] = React.useState<string | null>(null); // For "Are you sure?"
-  const [alertError, setAlertError] = React.useState<string | null>(null); // For "Cannot delete"
-  
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  const [alertError, setAlertError] = React.useState<string | null>(null);
+
   // Table State
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
-  const fetchData = async () => {
+  // --- 2. WRAP FETCHDATA IN USECALLBACK ---
+  // This prevents the function from being recreated every render,
+  // keeping the socket connection stable.
+  const fetchData = React.useCallback(async () => {
     try {
-      setLoading(true);
+      // Don't set loading(true) here, or the UI will flash on every update
       const [usersRes, rolesRes] = await Promise.all([
         fetch("http://localhost:5000/users"),
-        fetch("http://localhost:5000/api/roles")
+        fetch("http://localhost:5000/api/roles"),
       ]);
 
       if (!usersRes.ok || !rolesRes.ok) throw new Error("Failed to fetch data");
@@ -116,11 +123,17 @@ export function ViewUsers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty dependency array means it's created once
 
+  // Initial Load
   React.useEffect(() => {
+    setLoading(true); // Only show spinner on first mount
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  // --- 3. ACTIVATE REAL-TIME UPDATES ---
+  // Whenever the server says "user_update", fetchData runs automatically.
+  useRealTime("user_update", fetchData);
 
   // --- HANDLERS ---
   const handleRoleChange = async (userId: string, newRoleName: string) => {
@@ -131,14 +144,13 @@ export function ViewUsers() {
         body: JSON.stringify({ roleName: newRoleName }),
       });
 
-      const data = await res.json(); // Parse the response
+      const data = await res.json();
 
       if (res.ok) {
         toast.success(`User role updated to ${newRoleName}`);
-        fetchData();
+        // No need to manually call fetchData() here anymore!
+        // The socket will trigger it automatically.
       } else {
-        // --- ERROR HANDLING ---
-        // If backend sends 400 (User on team), show the Alert Dialog
         setAlertError(data.message || "Failed to update role");
       }
     } catch (error) {
@@ -153,18 +165,16 @@ export function ViewUsers() {
       const res = await fetch(`http://localhost:5000/users/${deleteId}`, {
         method: "DELETE",
       });
-      
+
       const responseData = await res.json();
 
       if (res.ok) {
-        // Success
         toast.success("User deleted successfully");
-        fetchData();
-        setDeleteId(null); 
+        // No need to manually call fetchData()
+        setDeleteId(null);
       } else {
-        // Error (e.g., 400 Bad Request because user is in a team)
-        setDeleteId(null); // Close confirmation
-        setAlertError(responseData.message || "Failed to delete user"); // Open Error Alert
+        setDeleteId(null);
+        setAlertError(responseData.message || "Failed to delete user");
       }
     } catch (error) {
       toast.error("Server connection error");
@@ -172,152 +182,174 @@ export function ViewUsers() {
     }
   };
 
-  const columns = React.useMemo<ColumnDef<User>[]>(() => [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
-    {
-      accessorKey: "_id",
-      header: "ID",
-      cell: ({ row }) => (
-        <div className="w-[80px] truncate font-mono text-xs mx-auto">
-          {row.getValue("_id")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "username",
-      header: "Name",
-      cell: ({ row }) => (
-        <div className="font-medium capitalize">{row.getValue("username")}</div>
-      ),
-    },
-    {
-      accessorKey: "email",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Email
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
+  const columns = React.useMemo<ColumnDef<User>[]>(
+    () => [
+      {
+        id: "select",
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(value) =>
+              table.toggleAllPageRowsSelected(!!value)
+            }
+            aria-label="Select all"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
       },
-      cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
-    },
-    {
-      accessorKey: "role",
-      header: "Role",
-      cell: ({ row }) => {
-        const roleName = row.original.role?.name || "No Role";
-        const colors: Record<string, string> = {
-          admin: "bg-purple-100 text-purple-800",
-          organizer: "bg-blue-100 text-blue-800",
-          member: "bg-green-100 text-green-800",
-        };
-        const badgeClass = colors[roleName] || "bg-gray-100 text-gray-800";
-
-        return (
-          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${badgeClass}`}>
-            {roleName}
+      {
+        accessorKey: "_id",
+        header: "ID",
+        cell: ({ row }) => (
+          <div className="w-[80px] truncate font-mono text-xs mx-auto">
+            {row.getValue("_id")}
           </div>
-        );
+        ),
       },
-      filterFn: (row, _id, value) => {
-        const roleName = row.original.role?.name;
-        return value === "all" ? true : roleName === value;
+      {
+        accessorKey: "username",
+        header: "Name",
+        cell: ({ row }) => (
+          <div className="font-medium capitalize">
+            {row.getValue("username")}
+          </div>
+        ),
       },
-    },
-    {
-      id: "actions",
-      enableHiding: false,
-      header: "Actions",
-      cell: ({ row }) => {
-        const userRow = row.original;
-        const currentRole = userRow.role?.name;
-        const isSelf = currentUser?.id === userRow._id;
+      {
+        accessorKey: "email",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+            >
+              Email
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => (
+          <div className="lowercase">{row.getValue("email")}</div>
+        ),
+      },
+      {
+        accessorKey: "role",
+        header: "Role",
+        cell: ({ row }) => {
+          const roleName = row.original.role?.name || "No Role";
+          const colors: Record<string, string> = {
+            admin: "bg-purple-100 text-purple-800",
+            organizer: "bg-blue-100 text-blue-800",
+            member: "bg-green-100 text-green-800",
+          };
+          const badgeClass = colors[roleName] || "bg-gray-100 text-gray-800";
 
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              
-              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(userRow._id)}>
-                Copy User ID
-              </DropdownMenuItem>
-              
-              <DropdownMenuSeparator />
+          return (
+            <div
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${badgeClass}`}
+            >
+              {roleName}
+            </div>
+          );
+        },
+        filterFn: (row, _id, value) => {
+          const roleName = row.original.role?.name;
+          return value === "all" ? true : roleName === value;
+        },
+      },
+      {
+        id: "actions",
+        enableHiding: false,
+        header: "Actions",
+        cell: ({ row }) => {
+          const userRow = row.original;
+          const currentRole = userRow.role?.name;
+          const isSelf = currentUser?.id === userRow._id;
 
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger disabled={isSelf}>
-                  {isSelf ? (
-                    <span className="text-muted-foreground">Cannot Change Own Role</span>
-                  ) : (
-                    <>
-                      Change Role
-                    </>
-                  )}
-                </DropdownMenuSubTrigger>
-                {!isSelf && (
-                  <DropdownMenuSubContent>
-                    {roleOptions.length > 0 ? (
-                      roleOptions.map((role) => (
-                        <DropdownMenuItem
-                          key={role._id}
-                          disabled={role.name === currentRole}
-                          onClick={() => handleRoleChange(userRow._id, role.name)}
-                          className="capitalize"
-                        >
-                          {role.name === currentRole && "✓ "}
-                          {role.name}
-                        </DropdownMenuItem>
-                      ))
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
+                <DropdownMenuItem
+                  onClick={() => navigator.clipboard.writeText(userRow._id)}
+                >
+                  Copy User ID
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger disabled={isSelf}>
+                    {isSelf ? (
+                      <span className="text-muted-foreground">
+                        Cannot Change Own Role
+                      </span>
                     ) : (
-                      <DropdownMenuItem disabled>Loading roles...</DropdownMenuItem>
+                      <>Change Role</>
                     )}
-                  </DropdownMenuSubContent>
-                )}
-              </DropdownMenuSub>
+                  </DropdownMenuSubTrigger>
+                  {!isSelf && (
+                    <DropdownMenuSubContent>
+                      {roleOptions.length > 0 ? (
+                        roleOptions.map((role) => (
+                          <DropdownMenuItem
+                            key={role._id}
+                            disabled={role.name === currentRole}
+                            onClick={() =>
+                              handleRoleChange(userRow._id, role.name)
+                            }
+                            className="capitalize"
+                          >
+                            {role.name === currentRole && "✓ "}
+                            {role.name}
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <DropdownMenuItem disabled>
+                          Loading roles...
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuSubContent>
+                  )}
+                </DropdownMenuSub>
 
-              <DropdownMenuSeparator />
-              
-              <DropdownMenuItem 
-                className="text-red-600 focus:text-red-600"
-                disabled={isSelf}
-                onClick={() => setDeleteId(userRow._id)}
-              >
-                Delete User
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600"
+                  disabled={isSelf}
+                  onClick={() => setDeleteId(userRow._id)}
+                >
+                  Delete User
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
       },
-    },
-  ], [roleOptions, currentUser]);
+    ],
+    [roleOptions, currentUser]
+  );
 
   const table = useReactTable({
     data,
@@ -330,6 +362,7 @@ export function ViewUsers() {
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    autoResetPageIndex: false,
     state: {
       sorting,
       columnFilters,
@@ -349,34 +382,41 @@ export function ViewUsers() {
   return (
     <div className="w-full px-16">
       {/* 1. CONFIRMATION DIALOG (Standard Delete) */}
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the user
-              account and remove their data from our servers.
+              This action cannot be undone. This will permanently delete the
+              user account and remove their data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={confirmDelete}>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={confirmDelete}
+            >
               Delete User
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* --- UPDATED ERROR DIALOG --- */}
-      {/* Reused for both Delete and Promote errors */}
-      <AlertDialog open={!!alertError} onOpenChange={(open) => !open && setAlertError(null)}>
+      {/* 2. ERROR DIALOG */}
+      <AlertDialog
+        open={!!alertError}
+        onOpenChange={(open) => !open && setAlertError(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            {/* Changed Title to be generic */}
-            <AlertDialogTitle className="text-red-600">Action Blocked</AlertDialogTitle> 
-            <AlertDialogDescription>
-              {alertError}
-            </AlertDialogDescription>
+            <AlertDialogTitle className="text-red-600">
+              Action Blocked
+            </AlertDialogTitle>
+            <AlertDialogDescription>{alertError}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setAlertError(null)}>
@@ -399,7 +439,9 @@ export function ViewUsers() {
 
         <Select
           onValueChange={(value) =>
-            table.getColumn("role")?.setFilterValue(value === "all" ? "" : value)
+            table
+              .getColumn("role")
+              ?.setFilterValue(value === "all" ? "" : value)
           }
         >
           <SelectTrigger className="w-[180px]">
@@ -408,7 +450,11 @@ export function ViewUsers() {
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
             {roleOptions.map((role) => (
-              <SelectItem key={role._id} value={role.name} className="capitalize">
+              <SelectItem
+                key={role._id}
+                value={role.name}
+                className="capitalize"
+              >
                 {role.name}
               </SelectItem>
             ))}
@@ -450,7 +496,12 @@ export function ViewUsers() {
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id} className="text-center">
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -459,17 +510,26 @@ export function ViewUsers() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="text-center">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
@@ -480,13 +540,24 @@ export function ViewUsers() {
 
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
+          {table.getFilteredSelectedRowModel().rows.length} of{" "}
+          {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
         <div className="space-x-2">
-          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
             Previous
           </Button>
-          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
             Next
           </Button>
         </div>

@@ -69,13 +69,10 @@ const deleteUser = async (req, res) => {
 
     // --- CHECK: IS USER ON A TEAM? ---
     if (user.teamId) {
-      // Find the team name to show in the error
       const team = await Team.findById(user.teamId);
+      const teamName = team ? team.name : "a team"; 
       
-      const teamName = team ? team.name : "a team"; // Fallback if team not found
-
-      req.io.emit("user_update", { action: "delete", userId: id });
-      
+      // ❌ REMOVED emit from here (We don't update the table if the delete failed)
       return res.status(400).json({ 
         message: `User is currently assigned to the team "${teamName}". Please remove them from the team first.` 
       });
@@ -95,7 +92,6 @@ const deleteUser = async (req, res) => {
         });
       }
       
-      // Fallback check in case teamId was somehow missing but they are set as organizer
       const team = await Team.findOne({ organizer: id }); 
       if (team) {
         return res.status(400).json({ 
@@ -121,6 +117,10 @@ const deleteUser = async (req, res) => {
 
     // --- FINAL DELETE ---
     await User.findByIdAndDelete(id);
+
+    // ✅ ADDED THIS HERE (Broadcast Success)
+    // This tells the frontend to refresh the table
+    req.io.emit("user_update", { action: "delete", userId: id });
 
     res.json({ message: "User deleted successfully." });
 
@@ -227,6 +227,8 @@ const registerUser = async (req, res) => {
     });
 
     await newUser.save();
+
+    req.io.emit("user_update", { action: "create", userId: newUser._id });
 
     res.status(201).json({ message: "User registered successfully!" });
 
