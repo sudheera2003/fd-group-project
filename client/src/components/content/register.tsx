@@ -68,7 +68,7 @@ export default function AddUser({ setOpen, isOpen }: AddUserProps) {
   useEffect(() => {
     async function fetchRoles() {
       try {
-        const res = await fetch("http://localhost:5000/roles");
+        const res = await fetch("http://localhost:5000/api/roles");
         if (res.ok) {
           const data = await res.json();
           setRoles(data);

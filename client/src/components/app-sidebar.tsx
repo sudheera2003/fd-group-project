@@ -26,14 +26,10 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayersIcon,
-  PlusCircleIcon,
-  PanelLeftIcon,
   DatabaseIcon,
   SettingsIcon,
   MoreVerticalIcon,
   UserCircleIcon,
-  CreditCardIcon,
-  BellIcon,
   LogOutIcon,
   CheckSquareIcon,
   type LucideIcon,
@@ -52,36 +48,8 @@ import {
 
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import AddUser from "./content/register";
-import NewEvent from "./content/new-event-dialog";
 
 // --- Data Arrays ---
-const navMain = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    id: "dashboard",
-  },
-  {
-    title: "Lifecycle",
-    url: "/lifecycle",
-    id: "lifecycle",
-  },
-  {
-    title: "Analytics",
-    url: "/analytics",
-    id: "analytics",
-  },
-  {
-    title: "Projects",
-    url: "/projects",
-    id: "projects",
-  },
-  {
-    title: "Team",
-    url: "/team",
-    id: "team",
-  },
-];
 
 const navSecondary = [
   {
@@ -100,10 +68,6 @@ const documents = [
     url: "#",
   },
   {
-    name: "Delete User",
-    url: "#",
-  },
-  {
     name: "View All Users",
     url: "/viewUsers",
   },
@@ -118,10 +82,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Define menus for different roles
   const adminMenu = [
     { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
-    { title: "Lifecycle", url: "/lifecycle", icon: LayersIcon },
     { title: "All Projects", url: "/projects", icon: LayersIcon },
-    { title: "User Management", url: "/admin/viewUsers", icon: UserCircleIcon },
-    { title: "Analytics", url: "/admin/analytics", icon: DatabaseIcon },
     { title: "Team", url: "/team", icon: UserCircleIcon },
   ];
 
@@ -198,33 +159,11 @@ function NavMain({
   }[];
   currentPath: string;
 }) {
-  const [isEventDialogOpen, setIsEventDialogOpen] = React.useState(false);
+  const [] = React.useState(false);
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Event Management</SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarMenu>
-          <SidebarMenuItem className="flex items-center gap-2">
-            {/* <Dialog
-              open={isEventDialogOpen}
-              onOpenChange={setIsEventDialogOpen}
-            >
-              <DialogTrigger asChild>
-                <SidebarMenuButton
-                  tooltip="Quick Create"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
-                >
-                  <PlusCircleIcon />
-                  <span>New Event</span>
-                </SidebarMenuButton>
-              </DialogTrigger>
-              <NewEvent
-                isOpen={isEventDialogOpen}
-                setOpen={setIsEventDialogOpen}
-              />
-            </Dialog> */}
-          </SidebarMenuItem>
-        </SidebarMenu>
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
@@ -388,15 +327,18 @@ function NavUser({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={editProfile} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={editProfile}
+                  className="cursor-pointer"
+                >
                   <UserCircleIcon />
                   Account
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               {/* CHANGED: Opens dialog instead of logging out immediately */}
-              <DropdownMenuItem 
-                onClick={() => setIsLogoutOpen(true)} 
+              <DropdownMenuItem
+                onClick={() => setIsLogoutOpen(true)}
                 className="cursor-pointer text-red-600 focus:text-red-600"
               >
                 <LogOutIcon />
@@ -418,7 +360,10 @@ function NavUser({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmLogout} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction
+              onClick={confirmLogout}
+              className="bg-red-600 hover:bg-red-700"
+            >
               Log out
             </AlertDialogAction>
           </AlertDialogFooter>
