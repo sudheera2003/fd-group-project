@@ -22,6 +22,9 @@ const createTask = async (req, res) => {
     
     // Return the populated task so the UI updates instantly
     await newTask.populate('assignedTo', 'username'); 
+
+    req.io.emit("task_update", { action: "create", taskId: newTask._id });
+
     res.status(201).json(newTask);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -32,6 +35,9 @@ const createTask = async (req, res) => {
 const deleteTask = async (req, res) => {
   try {
     await Task.findByIdAndDelete(req.params.id);
+
+    req.io.emit("task_update", { action: "delete", taskId: req.params.id });
+
     res.status(200).json({ message: "Task deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -80,6 +86,9 @@ const updateTaskStatus = async (req, res) => {
       { status },
       { new: true } // Return the updated document
     );
+
+    req.io.emit("task_update", { action: "status_change", taskId: req.params.id });
+
     res.status(200).json(task);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -100,6 +109,9 @@ const submitTask = async (req, res) => {
       },
       { new: true }
     );
+
+    req.io.emit("task_update", { action: "submitted", taskId: req.params.id });
+
     res.status(200).json(task);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -121,6 +133,9 @@ const reviewTask = async (req, res) => {
       updateData,
       { new: true }
     );
+
+    req.io.emit("task_update", { action: "reviewed", taskId: req.params.id });
+
     res.status(200).json(task);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -161,6 +176,8 @@ const reassignTask = async (req, res) => {
     if (!updatedTask) {
       return res.status(404).json({ message: "Task not found" });
     }
+
+    req.io.emit("task_update", { action: "reassigned", taskId: id });
 
     res.json(updatedTask);
   } catch (err) {

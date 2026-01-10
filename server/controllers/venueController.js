@@ -14,6 +14,9 @@ const createVenue = async (req, res) => {
   try {
     const newVenue = new Venue(req.body);
     await newVenue.save();
+
+    req.io.emit("setting_update", { type: "venue" });
+    
     res.status(201).json({ message: "Venue created!" });
   } catch (err) {
     res.status(400).json({ message: "Failed to create venue. Name must be unique." });

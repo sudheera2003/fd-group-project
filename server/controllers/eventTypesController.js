@@ -14,6 +14,7 @@ const createEventType = async (req, res) => {
   try {
     const newType = new EventType(req.body);
     await newType.save();
+    req.io.emit("setting_update", { type: "event_type" });
     res.status(201).json({ message: "Event Type created!" });
   } catch (err) {
     res.status(400).json({ message: "Failed to create type. Name must be unique." });

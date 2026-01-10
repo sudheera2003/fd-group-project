@@ -50,6 +50,8 @@ const createTeam = async (req, res) => {
       { $set: { teamId: newTeam._id } }
     );
 
+    req.io.emit("team_update", { action: "create", teamId: newTeam._id });
+
     res.status(201).json(newTeam);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -178,6 +180,8 @@ const updateTeam = async (req, res) => {
       .populate("members", "username email role")
       .populate("createdBy", "username");
 
+    req.io.emit("team_update", { action: "update", teamId: team._id });
+
     res.json(updatedTeam);
 
   } catch (err) {
@@ -216,6 +220,9 @@ const deleteTeam = async (req, res) => {
     );
 
     await Team.findByIdAndDelete(id);
+
+    req.io.emit("team_update", { action: "delete", teamId: id });
+    
     res.json({ message: "Team deleted successfully" });
   } catch (err) {
     console.error("Delete Team Error:", err);
