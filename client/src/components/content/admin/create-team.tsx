@@ -21,11 +21,11 @@ const teamSchema = z.object({
   description: z.string().optional(),
 });
 
-// Added teamToEdit prop
+// 1. UPDATE INTERFACE: Allow onSuccess to take an optional message
 interface TeamFormProps {
   setOpen?: (open: boolean) => void;
   teamToEdit?: any | null; 
-  onSuccess?: () => void; // To refresh table
+  onSuccess?: (message?: string) => void; // <--- CHANGED THIS
 }
 
 export default function CreateTeamForm({ setOpen, teamToEdit, onSuccess }: TeamFormProps) {
@@ -57,7 +57,7 @@ export default function CreateTeamForm({ setOpen, teamToEdit, onSuccess }: TeamF
             _id: teamToEdit.organizer._id,
             username: teamToEdit.organizer.username,
             email: teamToEdit.organizer.email,
-            role: "organizer" // Assuming role name
+            role: "organizer" 
         });
       }
 
@@ -109,7 +109,7 @@ export default function CreateTeamForm({ setOpen, teamToEdit, onSuccess }: TeamF
   // --- Submit ---
   async function onSubmit(values: z.infer<typeof teamSchema>) {
     if (!organizer) { toast.error("Please select an Organizer."); return; }
-    // Validation: Organizer Removed check
+    
     if (teamToEdit && !organizer) {
         toast.error("You cannot leave a team without an organizer.");
         return;
@@ -126,16 +126,27 @@ export default function CreateTeamForm({ setOpen, teamToEdit, onSuccess }: TeamF
       };
 
       if (teamToEdit) {
+        // --- CHECK IF ORGANIZER CHANGED ---
+        const isOrganizerChanged = teamToEdit.organizer?._id !== organizer._id;
+
         // --- EDIT MODE ---
         await api.put(`http://localhost:5000/api/teams/${teamToEdit._id}`, payload);
         toast.success("Team updated successfully!");
+
+        // Trigger Success with specific message if organizer swapped
+        if (isOrganizerChanged) {
+            onSuccess?.("Projects belonging to this team have been automatically transferred to the new organizer.");
+        } else {
+            onSuccess?.();
+        }
+
       } else {
         // --- CREATE MODE ---
         await api.post("http://localhost:5000/api/teams", payload);
         toast.success("Team created successfully!");
+        onSuccess?.();
       }
 
-      onSuccess?.(); // Trigger refresh
       setOpen?.(false);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to save team");

@@ -81,10 +81,31 @@ const getAllEvents = async (req, res) => {
   }
 };
 
+const updateEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    // Check if event exists
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    // Update the event
+    // { new: true } returns the updated document instead of the old one
+    const updatedEvent = await Event.findByIdAndUpdate(id, updateData, { new: true });
+
+    res.json(updatedEvent);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 module.exports = { 
   getProjectEvents, 
   getAllEvents,
   createEvent, 
+  updateEvent,
   deleteEvent 
 };

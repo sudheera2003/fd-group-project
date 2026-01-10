@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, MapPin, Plus, ArrowLeft, Trash2 } from "lucide-react";
+import { Calendar, MapPin, Plus, ArrowLeft, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import NewEvent from "../new-event-dialog"; // Ensure path is correct
 
@@ -15,6 +15,7 @@ export default function ProjectDashboard() {
   const [project, setProject] = useState<any>(null);
   const [events, setEvents] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
 
   // 1. Define fetch function so it can be reused by the child component
   const fetchEvents = async () => {
@@ -56,20 +57,21 @@ export default function ProjectDashboard() {
     }
   };
 
+  const handleEditClick = (event: any) => {
+    setEditingEvent(event); // Set the event data
+    setIsDialogOpen(true);  // Open the dialog
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header code ... (unchanged) */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            Project Dashboard
-          </h2>
-          <p className="text-muted-foreground">
-            Manage events and assign tasks.
-          </p>
+          <h2 className="text-2xl font-bold tracking-tight">Project Dashboard</h2>
+          <p className="text-muted-foreground">Manage events and assign tasks.</p>
         </div>
       </div>
 
@@ -77,9 +79,14 @@ export default function ProjectDashboard() {
       <div className="flex justify-between items-center bg-muted/50 p-4 rounded-lg">
         <h3 className="font-semibold">Events Timeline</h3>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            // Reset editing state when dialog closes
+            if (!open) setEditingEvent(null);
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            {/* Make sure creating new clears the editing state */}
+            <Button onClick={() => setEditingEvent(null)}>
               <Plus className="mr-2 h-4 w-4" /> Add Event
             </Button>
           </DialogTrigger>
@@ -89,6 +96,7 @@ export default function ProjectDashboard() {
             setOpen={setIsDialogOpen}
             onEventCreated={fetchEvents}
             projectId={id}
+            eventToEdit={editingEvent} // 3. PASS THE EDITING EVENT
           />
         </Dialog>
       </div>
@@ -100,21 +108,41 @@ export default function ProjectDashboard() {
             key={event._id}
             className="hover:border-primary transition-colors relative group"
           >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 right-2 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 hover:bg-red-50"
-              onClick={(e) => {
-                e.stopPropagation(); 
-                handleDeleteEvent(event._id);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {/* ACTION BUTTONS WRAPPER */}
+            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                
+                {/* 4. EDIT BUTTON */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditClick(event);
+                    }}
+                >
+                    <Pencil className="h-4 w-4" />
+                </Button>
+
+                {/* DELETE BUTTON */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteEvent(event._id);
+                    }}
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg pr-8">{event.name}</CardTitle>
+              <CardTitle className="text-lg pr-16">{event.name}</CardTitle> {/* Increased pr padding to fit 2 buttons */}
             </CardHeader>
             <CardContent>
+              {/* Content remains unchanged */}
               <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
@@ -126,7 +154,6 @@ export default function ProjectDashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  {/* Handle dynamic venue objects if your API returns objects instead of strings now */}
                   {typeof event.venue === "object"
                     ? event.venue.name
                     : event.venue || "TBD"}
@@ -139,7 +166,7 @@ export default function ProjectDashboard() {
                   navigate(`/organizer/events/${event._id}/tasks`, {
                     state: {
                       eventName: event.name,
-                      teamId: project?.team?.id, // Added optional chaining safety
+                      teamId: project?.team?.id,
                     },
                   });
                 }}

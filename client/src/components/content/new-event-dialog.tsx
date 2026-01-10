@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import api from "@/lib/api"; 
+import api from "@/lib/api";
 import { Check } from "lucide-react"; // Import Check icon for selection
 
 import {
@@ -85,9 +85,16 @@ interface NewEventProps {
   isOpen: boolean;
   onEventCreated?: () => void;
   projectId?: string;
+  eventToEdit?: any;
 }
 
-export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }: NewEventProps) {
+export default function NewEvent({
+  setOpen,
+  isOpen,
+  onEventCreated,
+  projectId,
+  eventToEdit,
+}: NewEventProps) {
   const [venues, setVenues] = React.useState<any[]>([]);
   const [eventTypes, setEventTypes] = React.useState<any[]>([]);
   const [loadingData, setLoadingData] = React.useState(false);
@@ -106,14 +113,21 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
     },
   });
 
+  const convertMinutesToDisplay = (totalMinutes: number) => {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    // Pad minutes with 0 if less than 10 (e.g., 1.05)
+    return `${hours}.${minutes.toString().padStart(2, "0")}`;
+  };
+
   React.useEffect(() => {
     if (isOpen) {
       const fetchData = async () => {
         setLoadingData(true);
         try {
           const [venueRes, typeRes] = await Promise.all([
-             api.get("/venues"),     
-             api.get("/event-types") 
+            api.get("/venues"),
+            api.get("/event-types"),
           ]);
 
           setVenues(venueRes.data);
@@ -126,10 +140,45 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
       };
 
       fetchData();
-    } else {
-        form.reset();
+      if (eventToEdit) {
+        // Parse date and time from ISO string
+        const eventDate = new Date(eventToEdit.date);
+        const dateString = eventDate.toISOString().split("T")[0];
+        const timeString = eventDate.toTimeString().slice(0, 5); // HH:MM
+
+        // Reset form with existing values
+        form.reset({
+          eventName: eventToEdit.name,
+          date: dateString,
+          startTime: timeString,
+          duration: convertMinutesToDisplay(eventToEdit.durationMinutes || 0),
+          // Handle populated objects vs ID strings
+          venue:
+            typeof eventToEdit.venue === "object"
+              ? eventToEdit.venue._id
+              : eventToEdit.venue,
+          eventType:
+            typeof eventToEdit.eventType === "object"
+              ? eventToEdit.eventType._id
+              : eventToEdit.eventType,
+          budget: eventToEdit.budget,
+          color: eventToEdit.color || "blue",
+        });
+      } else {
+        // Reset to empty if adding new
+        form.reset({
+          eventName: "",
+          date: "",
+          startTime: "",
+          duration: "",
+          eventType: "",
+          venue: "",
+          budget: 0,
+          color: "blue",
+        });
+      }
     }
-  }, [isOpen, form]);
+  }, [isOpen, eventToEdit, form]);
 
   async function onSubmit(values: FormValues) {
     // Duration formatting logic
@@ -150,22 +199,35 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
     const totalMinutes = hours * 60 + minutes;
 
     try {
-        await api.post("/events", {
-            name: values.eventName,
-            date: new Date(`${values.date}T${values.startTime}`), 
-            venue: values.venue, 
-            eventType: values.eventType, 
-            budget: values.budget,
-            durationMinutes: totalMinutes,
-            color: values.color, // --- 3. Send Color to API ---
-            projectId: projectId 
+      if (eventToEdit) {
+        await api.put(`/events/${eventToEdit._id}`, {
+          name: values.eventName,
+          date: new Date(`${values.date}T${values.startTime}`),
+          venue: values.venue,
+          eventType: values.eventType,
+          budget: values.budget,
+          durationMinutes: totalMinutes,
+          color: values.color,
+          projectId: projectId,
         });
-
+        toast.success("Event updated successfully!");
+      } else {
+        await api.post("/events", {
+          name: values.eventName,
+          date: new Date(`${values.date}T${values.startTime}`),
+          venue: values.venue,
+          eventType: values.eventType,
+          budget: values.budget,
+          durationMinutes: totalMinutes,
+          color: values.color,
+          projectId: projectId,
+        });
         toast.success("Event created successfully!");
-        setOpen(false);
-        if (onEventCreated) onEventCreated(); 
+      }
+      setOpen(false);
+      if (onEventCreated) onEventCreated();
     } catch (error) {
-        toast.error("Failed to create event");
+      toast.error(eventToEdit ? "Failed to update event" : "Failed to create event");
     }
   }
 
@@ -175,7 +237,8 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
     const parts = value.split(".");
     if (parts.length === 2) {
       const minutesPart = parts[1];
-      if (minutesPart.length > 2) return parts[0] + "." + minutesPart.slice(0, 2);
+      if (minutesPart.length > 2)
+        return parts[0] + "." + minutesPart.slice(0, 2);
       if (parseInt(minutesPart) > 59) return parts[0] + ".59";
       return value;
     }
@@ -199,9 +262,9 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
   return (
     <DialogContent className="sm:max-w-[550px]">
       <DialogHeader>
-        <DialogTitle>Create New Event</DialogTitle>
+        <DialogTitle>{eventToEdit ? "Edit Event" : "Create New Event"}</DialogTitle>
         <DialogDescription>
-          Enter the details for your upcoming event.
+          {eventToEdit ? "Update the details for this event." : "Enter the details for your upcoming event."}
         </DialogDescription>
       </DialogHeader>
 
@@ -314,18 +377,25 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder={loadingData ? "Loading..." : "Select type"} />
+                      <SelectValue
+                        placeholder={loadingData ? "Loading..." : "Select type"}
+                      />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {eventTypes.length > 0 ? (
-                        eventTypes.map((type: any) => (
-                            <SelectItem key={type._id || type.id} value={type._id || type.name}>
-                                {type.name}
-                            </SelectItem>
-                        ))
+                      eventTypes.map((type: any) => (
+                        <SelectItem
+                          key={type._id || type.id}
+                          value={type._id || type.name}
+                        >
+                          {type.name}
+                        </SelectItem>
+                      ))
                     ) : (
-                        <SelectItem value="none" disabled>No types available</SelectItem>
+                      <SelectItem value="none" disabled>
+                        No types available
+                      </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
@@ -344,18 +414,27 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder={loadingData ? "Loading..." : "Select venue"} />
+                      <SelectValue
+                        placeholder={
+                          loadingData ? "Loading..." : "Select venue"
+                        }
+                      />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {venues.length > 0 ? (
-                        venues.map((venue: any) => (
-                            <SelectItem key={venue._id || venue.id} value={venue._id || venue.name}>
-                                {venue.name}
-                            </SelectItem>
-                        ))
+                      venues.map((venue: any) => (
+                        <SelectItem
+                          key={venue._id || venue.id}
+                          value={venue._id || venue.name}
+                        >
+                          {venue.name}
+                        </SelectItem>
+                      ))
                     ) : (
-                        <SelectItem value="none" disabled>No venues available</SelectItem>
+                      <SelectItem value="none" disabled>
+                        No venues available
+                      </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
@@ -399,7 +478,7 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
                     {COLOR_OPTIONS.map((option) => (
                       <div
                         key={option.name}
-                        onClick={() => field.onChange(option.name)} 
+                        onClick={() => field.onChange(option.name)}
                         className={`cursor-pointer rounded-full w-8 h-8 flex items-center justify-center transition-all shadow-sm hover:scale-110 ${
                           field.value === option.name
                             ? "ring-2 ring-offset-2 ring-primary ring-offset-background scale-110"
@@ -408,7 +487,10 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
                         style={{ backgroundColor: option.hex }} // Display the Hex
                       >
                         {field.value === option.name && (
-                          <Check className="w-4 h-4 text-white drop-shadow-md" strokeWidth={3} />
+                          <Check
+                            className="w-4 h-4 text-white drop-shadow-md"
+                            strokeWidth={3}
+                          />
                         )}
                       </div>
                     ))}
@@ -426,7 +508,9 @@ export default function NewEvent({ setOpen, isOpen, onEventCreated, projectId }:
               </Button>
             </DialogClose>
             <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Creating..." : "Create Event"}
+              {form.formState.isSubmitting 
+                ? (eventToEdit ? "Updating..." : "Creating...") 
+                : (eventToEdit ? "Save Changes" : "Create Event")}
             </Button>
           </DialogFooter>
         </form>

@@ -89,22 +89,40 @@ const updateTeam = async (req, res) => {
 
     // --- 🛑 CRITICAL CHECK: ORGANIZER SWAP via EMAIL ---
     const currentOrganizerId = team.organizer._id.toString();
-    const currentOrganizerEmail = team.organizer.email; // We need this!
+    const currentOrganizerEmail = team.organizer.email; 
 
     if (organizerId !== currentOrganizerId) {
        // The Admin is trying to change the Organizer.
        
-       // Check if the current organizer's EMAIL is listed on any active projects for this team
+       // A. BLOCKING CHECK: Look for ACTIVE projects
        const activeProject = await Project.findOne({
-          "team.organizerEmail": currentOrganizerEmail, // Match by Email
-          "team.id": id,                                // Match by Team ID
-          status: { $in: ['Planning', 'In Progress'] }
+         "team.organizerEmail": currentOrganizerEmail, 
+         "team.id": id,                                
+         status: { $in: ['Planning', 'In Progress'] }
        });
 
        if (activeProject) {
           return res.status(400).json({ 
              message: `Cannot change organizer: The current organizer (${team.organizer.username}) leads an active project "${activeProject.name}". Please complete or delete the project first.` 
           });
+       }
+
+       // B. TRANSFER OWNERSHIP (The Fix)
+       // If we passed the check above, it means projects are "Completed" or "On Hold".
+       // We must update those projects to point to the NEW organizer.
+       
+       const newOrganizerUser = await User.findById(organizerId);
+       if (newOrganizerUser) {
+           await Project.updateMany(
+               { "team.id": id }, // Find all projects belonging to this team
+               { 
+                 $set: { 
+                   "team.organizerEmail": newOrganizerUser.email, // Update the email used for checks
+                   "team.organizerName": newOrganizerUser.username    // Update the snapshot username
+                 } 
+               }
+           );
+           console.log(`Transferred projects for Team ${id} to ${newOrganizerUser.email}`);
        }
     }
 
@@ -185,6 +203,7 @@ const updateTeam = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // 4. Delete Team
 const deleteTeam = async (req, res) => {

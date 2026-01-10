@@ -72,6 +72,7 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [transferInfo, setTransferInfo] = useState<string | null>(null);
 
   // --- DELETE STATE ---
   const [deleteId, setDeleteId] = useState<string | null>(null); // Stores ID pending deletion
@@ -127,6 +128,16 @@ export default function TeamsPage() {
   const handleCreate = () => {
     setSelectedTeam(null);
     setIsDialogOpen(true);
+  };
+
+  const handleTeamOperationSuccess = (message?: string) => {
+    fetchTeams(); // Reload the table
+    setIsDialogOpen(false); // Close the Edit/Create form
+
+    // If the backend/form sent a special message about transfers, show the alert
+    if (message) {
+      setTransferInfo(message);
+    }
   };
 
   const columns = useMemo<ColumnDef<Team>[]>(
@@ -308,6 +319,35 @@ export default function TeamsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* 3. INFO DIALOG (Ownership Transfer Success) */}
+      <AlertDialog
+        open={!!transferInfo}
+        onOpenChange={(open) => !open && setTransferInfo(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-blue-600 flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-blue-600" />
+              Ownership Transferred
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground">
+              {transferInfo}
+            </AlertDialogDescription>
+            <AlertDialogDescription className="text-xs text-muted-foreground mt-2">
+              The previous organizer has been removed from these projects, and full access has been granted to the new organizer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => setTransferInfo(null)}
+            >
+              Acknowledged
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div>
@@ -338,7 +378,7 @@ export default function TeamsPage() {
             <CreateTeamForm
               setOpen={setIsDialogOpen}
               teamToEdit={selectedTeam}
-              onSuccess={fetchTeams}
+              onSuccess={handleTeamOperationSuccess}
             />
           </DialogContent>
         </Dialog>
