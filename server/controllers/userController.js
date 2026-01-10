@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const Project = require('../models/Project');
@@ -161,4 +162,77 @@ const getUserById = async (req, res) => {
   }
 };
 
-module.exports = { getUsers, updateUserRole, deleteUser, updateUserProfile, getUserById };
+const searchUsers = async (req, res) => { // 2. Shortened path
+  try {
+    const { query } = req.query;
+    if (!query) return res.json([]);
+
+    // 1. First, find the IDs for 'member' and 'organizer' roles
+    // Note: Ensure your DB actually HAS roles named exactly 'member' and 'organizer'
+    const targetRoles = await Role.find({ 
+      name: { $in: ['member', 'organizer'] } 
+    });
+    
+    const roleIds = targetRoles.map(role => role._id);
+
+    // 2. Search Users
+    const users = await User.find({
+      email: { $regex: query, $options: 'i' },
+      role: { $in: roleIds }
+    })
+    .select('_id username email role')
+    .populate('role', 'name')
+    .limit(5);
+
+    // 3. Format
+    const formattedUsers = users.map(user => ({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role ? user.role.name : 'unknown'
+    }));
+
+    res.json(formattedUsers);
+
+  } catch (err) {
+    console.error("Search Error:", err);
+    res.status(500).json({ error: "Search failed" });
+  }
+};
+
+const registerUser = async (req, res) => {
+  try {
+    // 'role' is now an ID (e.g., "65b12...") coming from the frontend
+    const { username, email, password, role } = req.body;
+
+    // Security Check: Does this Role ID actually exist in the database?
+    const validRole = await Role.findById(role);
+    if (!validRole) {
+      return res.status(400).json({ message: "Invalid Role ID selected." });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = new User({
+      username,
+      email,
+      password: hashedPassword,
+      role: role
+    });
+
+    await newUser.save();
+
+    res.status(201).json({ message: "User registered successfully!" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { getUsers, updateUserRole, deleteUser, updateUserProfile, getUserById, searchUsers, registerUser };

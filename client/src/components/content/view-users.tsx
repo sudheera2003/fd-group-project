@@ -100,7 +100,7 @@ export function ViewUsers() {
       setLoading(true);
       const [usersRes, rolesRes] = await Promise.all([
         fetch("http://localhost:5000/users"),
-        fetch("http://localhost:5000/roles")
+        fetch("http://localhost:5000/api/roles")
       ]);
 
       if (!usersRes.ok || !rolesRes.ok) throw new Error("Failed to fetch data");
