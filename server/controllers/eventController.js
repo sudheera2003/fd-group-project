@@ -28,6 +28,8 @@ const deleteEvent = async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
+    req.io.emit("event_update", { action: "delete", eventId: id });
+
     res.json({ message: "Event and its tasks deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -61,6 +63,8 @@ const createEvent = async (req, res) => {
     
     await newEvent.save();
     await newEvent.populate(['venue', 'eventType']);
+
+    req.io.emit("event_update", { action: "create", eventId: newEvent._id });
 
     res.status(201).json(newEvent);
   } catch (err) {

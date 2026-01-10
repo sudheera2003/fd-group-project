@@ -24,6 +24,7 @@ import EventTypesPage from "./components/content/admin/event-types-page";
 import ProfilePage from "./components/content/profile-page";
 import AdminProjectDetails from "./components/content/admin/project-details-page";
 import ViewTeamPage from "./components/content/view-team";
+import { SocketProvider } from "./context/socket-provider";
 
 function App() {
   const { user, isLoading } = useAuth();
@@ -38,6 +39,7 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <SocketProvider>
       <BrowserRouter>
         <Routes>
           {/* --- 1. PUBLIC ROUTES --- */}
@@ -133,6 +135,7 @@ function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
+      </SocketProvider>
       <Toaster position="top-center" richColors />
     </ThemeProvider>
   );

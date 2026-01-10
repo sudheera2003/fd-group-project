@@ -30,6 +30,9 @@ const createProject = async (req, res) => {
   try {
     const newProject = new Project({ name, description, deadline, team });
     await newProject.save();
+
+    req.io.emit("project_update", { action: "create", projectId: newProject._id });
+
     res.status(201).json(newProject);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -51,6 +54,8 @@ const deleteProject = async (req, res) => {
     if (!deletedProject) {
       return res.status(404).json({ message: "Project not found" });
     }
+
+    req.io.emit("project_update", { action: "delete", projectId });
 
     res.json({ message: "Project and all associated data deleted successfully" });
   } catch (err) {

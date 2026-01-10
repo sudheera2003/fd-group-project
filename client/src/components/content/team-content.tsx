@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { Plus, MoreHorizontal, ChevronDown, Loader2 } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback } from "react"; // Added useCallback
+import { Plus, MoreHorizontal, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useRealTime } from "@/hooks/use-real-time"; // <--- 1. IMPORT WEBHOOK
 import CreateTeamForm from "./admin/create-team";
 
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"; // Import Alert Dialog
+} from "@/components/ui/alert-dialog"; 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -75,26 +76,34 @@ export default function TeamsPage() {
   const [transferInfo, setTransferInfo] = useState<string | null>(null);
 
   // --- DELETE STATE ---
-  const [deleteId, setDeleteId] = useState<string | null>(null); // Stores ID pending deletion
-  const [alertError, setAlertError] = useState<string | null>(null); // Stores error message
+  const [deleteId, setDeleteId] = useState<string | null>(null); 
+  const [alertError, setAlertError] = useState<string | null>(null); 
 
   // Table State
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
-
-  const fetchTeams = async () => {
+  // --- 2. DEFINE FETCH FUNCTION (Stable Callback) ---
+  const fetchTeams = useCallback(async () => {
     try {
       const res = await fetch("http://localhost:5000/api/teams");
       const data = await res.json();
       if (res.ok) setTeams(data);
     } catch (error) {
-      toast.error("Failed to load teams");
+      console.error(error);
+      // Optional: Suppress toast on background updates to avoid spamming user
+      // toast.error("Failed to load teams");
     }
-  };
+  }, []);
+
+  // --- 3. INITIAL LOAD ---
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
+
+  // --- 4. REAL-TIME LISTENER ---
+  // Whenever backend emits "team_update", re-fetch the list
+  useRealTime("team_update", fetchTeams);
 
   // --- DELETE LOGIC ---
   const confirmDelete = async () => {
@@ -107,12 +116,11 @@ export default function TeamsPage() {
 
       if (res.ok) {
         toast.success("Team deleted successfully");
-        fetchTeams();
+        // No need to fetchTeams() here manually, the socket will do it
         setDeleteId(null);
       } else {
-        // Backend returned error (e.g., Team assigned to Project)
-        setDeleteId(null); // Close confirmation dialog
-        setAlertError(data.message || "Failed to delete team"); // Open Error Alert
+        setDeleteId(null); 
+        setAlertError(data.message || "Failed to delete team"); 
       }
     } catch (error) {
       toast.error("Server connection error");
@@ -240,7 +248,7 @@ export default function TeamsPage() {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-red-600 focus:text-red-600"
-                      onClick={() => setDeleteId(team._id)} // <--- TRIGGER DELETE
+                      onClick={() => setDeleteId(team._id)} 
                     >
                       Delete Team
                     </DropdownMenuItem>
@@ -267,6 +275,10 @@ export default function TeamsPage() {
     getFilteredRowModel: getFilteredRowModel(),
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
+    
+    // --- 5. PREVENT PAGE RESET ON UPDATE ---
+    autoResetPageIndex: false, 
+    
     state: { columnFilters, columnVisibility },
   });
 
