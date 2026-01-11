@@ -36,7 +36,6 @@ import {
   LogOutIcon,
   CheckSquareIcon,
   type LucideIcon,
-  Calendar,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -137,8 +136,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ];
 
   const memberMenu = [
+    { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
     { title: "My Tasks", url: "/member/tasks", icon: CheckSquareIcon },
-    { title: "Schedule", url: "/member/schedule", icon: Calendar },
     { title: "Team", url: "/view-team", icon: UserCircleIcon },
   ];
 
