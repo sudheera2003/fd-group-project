@@ -106,7 +106,7 @@ export function ViewUsers() {
     try {
       // Don't set loading(true) here, or the UI will flash on every update
       const [usersRes, rolesRes] = await Promise.all([
-        fetch("http://localhost:5000/users"),
+        fetch("http://localhost:5000/api/users"),
         fetch("http://localhost:5000/api/roles"),
       ]);
 
@@ -138,7 +138,7 @@ export function ViewUsers() {
   // --- HANDLERS ---
   const handleRoleChange = async (userId: string, newRoleName: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/users/${userId}/role`, {
+      const res = await fetch(`http://localhost:5000/api/users/${userId}/role`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roleName: newRoleName }),
@@ -162,7 +162,7 @@ export function ViewUsers() {
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      const res = await fetch(`http://localhost:5000/users/${deleteId}`, {
+      const res = await fetch(`http://localhost:5000/api/users/${deleteId}`, {
         method: "DELETE",
       });
 

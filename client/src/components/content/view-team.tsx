@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react"; // Added useCallback
+import { useEffect, useState, useCallback } from "react"; // Added useCallback
 import { useAuth } from "@/hooks/use-auth";
 import { useRealTime } from "@/hooks/use-real-time"; // <--- 1. IMPORT THIS
 import {
@@ -12,7 +12,6 @@ import {
   CalendarDays,
   Users,
 } from "lucide-react";
-import { toast } from "sonner";
 import api from "@/lib/api";
 
 import {

@@ -61,7 +61,7 @@ export default function ProfilePage() {
     if (!authUser?.id) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/users/${authUser.id}`);
+      const res = await fetch(`http://localhost:5000/api/users/${authUser.id}`);
       const data = await res.json();
 
       if (res.ok) {
@@ -101,7 +101,7 @@ export default function ProfilePage() {
     setIsSaving(true);
     try {
       // Using the URL that you confirmed works
-      const res = await fetch(`http://localhost:5000/users/${displayUser.id}`, {
+      const res = await fetch(`http://localhost:5000/api/users/${displayUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),

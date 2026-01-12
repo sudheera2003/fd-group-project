@@ -1,5 +1,4 @@
 const Task = require('../models/Task');
-const Team = require('../models/Team'); // Needed to fetch members
 
 // Get tasks for a specific event
 const getEventTasks = async (req, res) => {
@@ -44,17 +43,6 @@ const deleteTask = async (req, res) => {
   }
 };
 
-// Helper: Get Team Members (So organizer knows who to assign)
-const getTeamMembers = async (req, res) => {
-  try {
-    const { teamId } = req.params;
-    const team = await Team.findById(teamId).populate('members', 'username email');
-    if (!team) return res.status(404).json({ message: "Team not found" });
-    res.status(200).json(team.members);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
 
 // Get tasks assigned to a specific user
 const getMemberTasks = async (req, res) => {
@@ -185,4 +173,4 @@ const reassignTask = async (req, res) => {
   }
 };
 
-module.exports = { getEventTasks, createTask, deleteTask, getTeamMembers, getMemberTasks, updateTaskStatus, submitTask, reviewTask, getPendingReviews, reassignTask };
+module.exports = { getEventTasks, createTask, deleteTask, getMemberTasks, updateTaskStatus, submitTask, reviewTask, getPendingReviews, reassignTask };

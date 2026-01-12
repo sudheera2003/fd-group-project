@@ -61,9 +61,6 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/venues", venueRoutes);
 app.use("/api/event-types", eventTypeRoutes);
 
-// Fallback user route (if needed based on your previous code)
-app.use("/", userRoutes);
-
 // --- 4. Database Connection (MongoDB) ---
 if (process.env.NODE_ENV !== "test") {
   mongoose

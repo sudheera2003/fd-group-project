@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { Check } from "lucide-react"; // Import Check icon for selection
+import { Check } from "lucide-react";
 
 import {
   DialogContent,
@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// --- 1. Define Color Options ---
+// --- Color Options ---
 const COLOR_OPTIONS = [
   { name: "blue", hex: "#3b82f6" },
   { name: "green", hex: "#22c55e" },
@@ -44,6 +44,9 @@ const COLOR_OPTIONS = [
   { name: "pink", hex: "#ec4899" },
   { name: "yellow", hex: "#eab308" },
 ];
+
+// --- 1. Define Status Options (Matches Mongoose Enum) ---
+const STATUS_OPTIONS = ["Pending", "Confirmed", "Completed", "Cancelled"];
 
 // --- Zod Schema ---
 const formSchema = z.object({
@@ -75,7 +78,8 @@ const formSchema = z.object({
   eventType: z.string().min(1, "Please select an event type"),
   venue: z.string().min(1, "Please select a venue"),
   budget: z.number().min(0, "Budget must be positive"),
-  color: z.string().min(1, "Please select a color"), // --- 2. Add Color Field ---
+  color: z.string().min(1, "Please select a color"),
+  status: z.string().min(1, "Status is required"), // --- 2. Add Status to Schema ---
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -109,14 +113,14 @@ export default function NewEvent({
       eventType: "",
       venue: "",
       budget: 0,
-      color: "blue", // Default to Blue
+      color: "blue",
+      status: "Pending", // --- 3. Default Status ---
     },
   });
 
   const convertMinutesToDisplay = (totalMinutes: number) => {
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
-    // Pad minutes with 0 if less than 10 (e.g., 1.05)
     return `${hours}.${minutes.toString().padStart(2, "0")}`;
   };
 
@@ -141,10 +145,10 @@ export default function NewEvent({
 
       fetchData();
       if (eventToEdit) {
-        // Parse date and time from ISO string
+        // Parse date and time
         const eventDate = new Date(eventToEdit.date);
         const dateString = eventDate.toISOString().split("T")[0];
-        const timeString = eventDate.toTimeString().slice(0, 5); // HH:MM
+        const timeString = eventDate.toTimeString().slice(0, 5); 
 
         // Reset form with existing values
         form.reset({
@@ -152,7 +156,6 @@ export default function NewEvent({
           date: dateString,
           startTime: timeString,
           duration: convertMinutesToDisplay(eventToEdit.durationMinutes || 0),
-          // Handle populated objects vs ID strings
           venue:
             typeof eventToEdit.venue === "object"
               ? eventToEdit.venue._id
@@ -163,6 +166,7 @@ export default function NewEvent({
               : eventToEdit.eventType,
           budget: eventToEdit.budget,
           color: eventToEdit.color || "blue",
+          status: eventToEdit.status || "Pending", // --- 4. Populate Status on Edit ---
         });
       } else {
         // Reset to empty if adding new
@@ -175,6 +179,7 @@ export default function NewEvent({
           venue: "",
           budget: 0,
           color: "blue",
+          status: "Pending",
         });
       }
     }
@@ -198,30 +203,25 @@ export default function NewEvent({
     const minutes = parseInt(formattedParts[1] || "0");
     const totalMinutes = hours * 60 + minutes;
 
+    // --- 5. Include Status in Payload ---
+    const payload = {
+      name: values.eventName,
+      date: new Date(`${values.date}T${values.startTime}`),
+      venue: values.venue,
+      eventType: values.eventType,
+      budget: values.budget,
+      durationMinutes: totalMinutes,
+      color: values.color,
+      status: values.status, 
+      projectId: projectId,
+    };
+
     try {
       if (eventToEdit) {
-        await api.put(`/events/${eventToEdit._id}`, {
-          name: values.eventName,
-          date: new Date(`${values.date}T${values.startTime}`),
-          venue: values.venue,
-          eventType: values.eventType,
-          budget: values.budget,
-          durationMinutes: totalMinutes,
-          color: values.color,
-          projectId: projectId,
-        });
+        await api.put(`/events/${eventToEdit._id}`, payload);
         toast.success("Event updated successfully!");
       } else {
-        await api.post("/events", {
-          name: values.eventName,
-          date: new Date(`${values.date}T${values.startTime}`),
-          venue: values.venue,
-          eventType: values.eventType,
-          budget: values.budget,
-          durationMinutes: totalMinutes,
-          color: values.color,
-          projectId: projectId,
-        });
+        await api.post("/events", payload);
         toast.success("Event created successfully!");
       }
       setOpen(false);
@@ -443,6 +443,32 @@ export default function NewEvent({
             )}
           />
 
+          {/* --- 6. Event Status Field --- */}
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem className="sm:col-span-3">
+                <FormLabel>Event Status</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           {/* Budget */}
           <FormField
             control={form.control}
@@ -466,7 +492,7 @@ export default function NewEvent({
             )}
           />
 
-          {/* --- 4. Color Picker Section --- */}
+          {/* Color Picker */}
           <FormField
             control={form.control}
             name="color"
@@ -484,7 +510,7 @@ export default function NewEvent({
                             ? "ring-2 ring-offset-2 ring-primary ring-offset-background scale-110"
                             : ""
                         }`}
-                        style={{ backgroundColor: option.hex }} // Display the Hex
+                        style={{ backgroundColor: option.hex }}
                       >
                         {field.value === option.name && (
                           <Check
@@ -508,8 +534,8 @@ export default function NewEvent({
               </Button>
             </DialogClose>
             <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting 
-                ? (eventToEdit ? "Updating..." : "Creating...") 
+              {form.formState.isSubmitting
+                ? (eventToEdit ? "Updating..." : "Creating...")
                 : (eventToEdit ? "Save Changes" : "Create Event")}
             </Button>
           </DialogFooter>
