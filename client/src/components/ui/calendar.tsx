@@ -13,6 +13,7 @@ export interface CalendarEvent {
   eventType?: string;
   durationMinutes?: number;
   budget?: number;
+  status?: string;
 }
 
 interface CalendarProps extends React.HTMLAttributes<HTMLDivElement> {

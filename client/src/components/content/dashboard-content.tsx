@@ -34,6 +34,7 @@ export function DashboardContent() {
           budget: event.budget,
           venue: event.venue?.name,
           eventType: event.eventType?.name,
+          status: event.status,
         };
       });
 

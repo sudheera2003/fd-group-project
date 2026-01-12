@@ -94,6 +94,11 @@ export default function EventDialog({
                         label="Event Type"
                         value={event.eventType || "Not specified"}
                       />
+                      <Separator />
+                      <EventRow
+                        label="Status"
+                        value={event.status || "Pending"}
+                      />
                     </div>
                   </AccordionContent>
                 </AccordionItem>
