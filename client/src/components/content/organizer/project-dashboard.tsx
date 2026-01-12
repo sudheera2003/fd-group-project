@@ -148,7 +148,7 @@ export default function ProjectDashboard() {
             className="hover:border-primary transition-colors relative group"
           >
             {/* ACTION BUTTONS WRAPPER */}
-            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-2 right-2 flex gap-1 transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100">
                 
                 <Button
                     variant="ghost"

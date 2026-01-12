@@ -29,13 +29,20 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayersIcon,
-  DatabaseIcon,
-  SettingsIcon,
   MoreVerticalIcon,
   UserCircleIcon,
   LogOutIcon,
   CheckSquareIcon,
   type LucideIcon,
+  LayoutDashboard,
+  FolderKanban,
+  Users,
+  ClipboardCheck,
+  Briefcase,
+  MapPin,
+  Tags,
+  UserPlus,
+  UserCog,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -57,10 +64,12 @@ const navSecondary = [
   {
     title: "Venues",
     url: "/venues",
+    icon: MapPin,
   },
   {
     title: "Event Types",
     url: "/event-types",
+    icon: Tags,
   },
 ];
 
@@ -68,10 +77,12 @@ const documents = [
   {
     name: "Add User",
     url: "#",
+    icon: UserPlus
   },
   {
     name: "View All Users",
     url: "/viewUsers",
+    icon: UserCog
   },
 ];
 
@@ -94,7 +105,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (!authUser?.id) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/users/${authUser.id}`);
+      const res = await fetch(`http://localhost:5000/api/users/${authUser.id}`);
       const data = await res.json();
 
       if (res.ok) {
@@ -123,22 +134,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   // Define menus for different roles (Using liveUser.role now)
   const adminMenu = [
-    { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
-    { title: "All Projects", url: "/projects", icon: LayersIcon },
-    { title: "Team", url: "/team", icon: UserCircleIcon },
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    { title: "All Projects", url: "/projects", icon: FolderKanban },
+    { title: "Teams", url: "/team", icon: Users },
   ];
 
   const organizerMenu = [
-    { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
-    { title: "My Projects", url: "/organizer/projects", icon: LayersIcon },
-    { title: "Approvals", url: "/organizer/approvals", icon: CheckSquareIcon },
-    { title: "Team", url: "/view-team", icon: UserCircleIcon },
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    { title: "My Projects", url: "/organizer/projects", icon: Briefcase },
+    { title: "Approvals", url: "/organizer/approvals", icon: ClipboardCheck },
+    { title: "Team", url: "/view-team", icon: Users },
   ];
 
   const memberMenu = [
-    { title: "Dashboard", url: "/dashboard", icon: LayersIcon },
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "My Tasks", url: "/member/tasks", icon: CheckSquareIcon },
-    { title: "Team", url: "/view-team", icon: UserCircleIcon },
+    { title: "Team", url: "/view-team", icon: Users },
   ];
 
   // Determine Menu based on LIVE role
@@ -233,6 +244,7 @@ function NavDocuments({
   items: {
     name: string;
     url: string;
+    icon: LucideIcon;
   }[];
 }) {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -246,7 +258,7 @@ function NavDocuments({
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <SidebarMenuButton>
-                    <DatabaseIcon />
+                  {React.createElement(item.icon)}
                     <span>{item.name}</span>
                   </SidebarMenuButton>
                 </DialogTrigger>
@@ -255,7 +267,7 @@ function NavDocuments({
             ) : (
               <SidebarMenuButton asChild>
                 <Link to={item.url}>
-                  <DatabaseIcon />
+                  {React.createElement(item.icon)}
                   <span>{item.name}</span>
                 </Link>
               </SidebarMenuButton>
@@ -274,6 +286,7 @@ function NavSecondary({
   items: {
     title: string;
     url: string;
+    icon: LucideIcon;
   }[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (
@@ -285,7 +298,7 @@ function NavSecondary({
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild>
                 <Link to={item.url}>
-                  <SettingsIcon />
+                  {React.createElement(item.icon)}
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>

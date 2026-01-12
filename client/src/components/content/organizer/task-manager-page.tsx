@@ -59,10 +59,10 @@ export default function TaskManagerPage() {
     try {
       const [taskRes, memberRes] = await Promise.all([
         api.get(`/tasks/event/${eventId}`),
-        api.get(`/tasks/members/${teamId}`)
+        api.get(`/teams/${teamId}`)
       ]);
       setTasks(taskRes.data);
-      setMembers(memberRes.data);
+      setMembers(memberRes.data.members);
     } catch (error) { toast.error("Failed to load data"); }
   };
 
