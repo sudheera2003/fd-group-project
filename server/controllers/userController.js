@@ -102,21 +102,6 @@ const deleteUser = async (req, res) => {
       }
     }
 
-    // --- CHECK 2: MEMBER CLEANUP ---
-    if (userRole === "member") {
-      await Task.updateMany(
-        { assignedTo: id },
-        {
-          $set: {
-            assignedTo: null,
-            status: "To Do",
-            submissionNote: "",
-            submissionLink: "",
-          },
-        }
-      );
-    }
-
     // --- FINAL DELETE ---
     await User.findByIdAndDelete(id);
 

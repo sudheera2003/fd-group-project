@@ -48,8 +48,9 @@ describe("User Management Integration", () => {
     expect(res.body.message).toBe("User registered successfully!");
   });
 
-  it("should unassign tasks when a member is deleted (DELETE /api/users/:id)", async () => {
+  it("should successfully delete a user who is not in a team (DELETE /api/users/:id)", async () => {
     const memberRole = await Role.create({ name: "Member" });
+
     const user = await User.create({
       username: "ToBeDeleted",
       email: "delete@me.com",
@@ -57,21 +58,11 @@ describe("User Management Integration", () => {
       role: memberRole._id,
     });
 
-    const task = await Task.create({
-      title: "Important Task",
-      description: "Cleanup test description",
-      eventId: new mongoose.Types.ObjectId(),
-      assignedTo: user._id,
-      status: "In Progress",
-      deadline: new Date(),
-    });
-
     const res = await request(app).delete(`/api/users/${user._id}`);
+
     expect(res.statusCode).toBe(200);
-
-    const updatedTask = await Task.findById(task._id);
-
-    expect(updatedTask.assignedTo).toBeNull();
-    expect(updatedTask.status).toBe("To Do");
-  });
+    expect(res.body.message).toMatch(/deleted successfully/i);
+    const deletedUser = await User.findById(user._id);
+    expect(deletedUser).toBeNull(); 
+});
 });
