@@ -9,7 +9,7 @@ router.get('/member/:userId', getMemberTasks);
 router.patch('/:id/status', updateTaskStatus);  
 router.post('/:id/submit', submitTask); 
 router.post('/:id/review', reviewTask); 
-router.get('/reviews/pending', getPendingReviews);
+router.get('/reviews/pending/:organizerId', getPendingReviews);
 router.patch('/:id/assign', reassignTask);
 
 module.exports = router;

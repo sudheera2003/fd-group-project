@@ -10,7 +10,7 @@ import { DashboardContent } from "@/components/content/dashboard-content";
 import { ProjectsContent } from "@/components/content/admin/projects-content";
 import TeamsPage from "@/components/content/team-content";
 import { ViewUsers } from "./components/content/view-users";
-import ProjectDashboard from "@/components/content/organizer/project-dashboard";
+import ProjectDashboard from "@/components/content/organizer/event-dashboard";
 import ForgotPasswordPage from "@/components/content/forgot-password";
 import OrganizerProjects from "./components/content/organizer/organizer-projects";
 import TaskManagerPage from "@/components/content/organizer/task-manager-page";

@@ -228,7 +228,7 @@ export default function ProjectDashboard() {
                             {typeof event.eventType === "object" ? event.eventType.name : "General"}
                         </span>
                     </div>
-                    <div className="flex items-center gap-1.5 font-medium text-foreground" title="Budget">
+                    <div className="flex items-center gap-1.5 font-medium text-muted-foreground" title="Budget">
                         <Banknote className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                         <span>{formatCurrency(event.budget)}</span>
                     </div>
@@ -239,7 +239,6 @@ export default function ProjectDashboard() {
               <Button
                 variant="outline"
                 className="w-full mt-4 text-xs h-8 hover:bg-primary/5 hover:text-primary border-primary/20"
-                style={{ color: event.color }} 
                 onClick={() => {
                   navigate(`/organizer/events/${event._id}/tasks`, {
                     state: { eventName: event.name, teamId: project?.team?.id },

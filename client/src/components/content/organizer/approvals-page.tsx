@@ -13,8 +13,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ApprovalsPage() {
+  const { user } = useAuth();
   const [reviews, setReviews] = useState<any[]>([]);
   
   // Rejection State
@@ -24,8 +26,11 @@ export default function ApprovalsPage() {
   // --- 3. DEFINE FETCH FUNCTION (Stable Callback) ---
   const fetchReviews = useCallback(async () => {
     try {
-      const res = await api.get("/tasks/reviews/pending");
-      setReviews(res.data);
+      if (user?.id) {
+        // Pass the ID explicitly in the URL
+        const res = await api.get(`/tasks/reviews/pending/${user.id}`);
+        setReviews(res.data);
+    }
     } catch (error) { 
       // Optional: console.error(error); 
       // Avoid toasting on background updates to keep UI clean

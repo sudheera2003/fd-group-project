@@ -1,4 +1,7 @@
 const Task = require('../models/Task');
+const Event = require('../models/Event');
+const Project = require('../models/Project');
+const User = require('../models/User');
 
 // Get tasks for a specific event
 const getEventTasks = async (req, res) => {
@@ -132,15 +135,47 @@ const reviewTask = async (req, res) => {
 
 const getPendingReviews = async (req, res) => {
   try {
-    // In a real app, you would filter this by the Organizer's ID (via req.user)
-    // For now, we fetch ALL tasks with status 'In Review'
-    const tasks = await Task.find({ status: 'In Review' })
-      .populate('eventId', 'name') // We need to know which Event it belongs to
-      .populate('assignedTo', 'username email') // We need to know who submitted it
-      .sort({ submittedAt: -1 }); // Oldest or Newest first? Let's do newest.
+    // 1. Get the Organizer ID from the URL params
+    const { organizerId } = req.params;
+
+    // 2. Find the Organizer's Email (because Project stores email, not ID)
+    const organizer = await User.findById(organizerId);
+    if (!organizer) {
+      return res.status(404).json({ message: "Organizer not found" });
+    }
+
+    // 3. Find Projects where this Organizer's email is stored in 'team.organizerEmail'
+    // Note: accessing nested field 'team.organizerEmail'
+    const projects = await Project.find({ 'team.organizerEmail': organizer.email }).select('_id');
+    
+    // Extract IDs: ['project_id_1', 'project_id_2']
+    const projectIds = projects.map(p => p._id);
+
+    if (projectIds.length === 0) {
+      return res.status(200).json([]); // No projects = No tasks
+    }
+
+    // 4. Find Events belonging to these Projects
+    const events = await Event.find({ projectId: { $in: projectIds } }).select('_id');
+    const eventIds = events.map(e => e._id);
+
+    if (eventIds.length === 0) {
+      return res.status(200).json([]); // No events = No tasks
+    }
+
+    // 5. Find Tasks in these Events that are 'In Review'
+    const tasks = await Task.find({ 
+        eventId: { $in: eventIds },
+        status: 'In Review'
+      })
+      .populate('eventId', 'name')        // Show Event Name
+      .populate('assignedTo', 'username email') // Show User details
+      .sort({ submittedAt: -1 });         // Newest submissions first
 
     res.status(200).json(tasks);
+
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 };
